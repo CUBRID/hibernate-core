@@ -5,40 +5,19 @@ configurations {
 }
 
 dependencies {
-   infinispanVersion = '5.0.0.CR4'
-   jnpVersion = '5.0.3.GA'
+    infinispanVersion = '5.1.4.FINAL'
+    jnpVersion = '5.0.3.GA'
 
-   compile(project(':hibernate-core'))
-   compile([group: 'org.infinispan', name: 'infinispan-core', version: infinispanVersion]) {
-      artifact {
-         name = "infinispan-core"
-         type = 'jar'
-      }
-   }
-   // http://jira.codehaus.org/browse/GRADLE-739
-   testCompile([group: 'org.infinispan', name: 'infinispan-core', version: infinispanVersion]) {
-      artifact {
-         name = "infinispan-core"
-         type = 'jar'
-      }
-      artifact {
-         name = "infinispan-core"
-         classifier = 'tests'
-         type = 'jar'
-      }
-   }
-   testCompile( project(':hibernate-testing') )
-   testCompile([group: 'org.jboss', name: 'jboss-common-core', version: '2.2.14.GA'])
-   testCompile([group: 'org.jboss.naming', name: 'jnp-client', version: jnpVersion])
-   testCompile([group: 'org.jboss.naming', name: 'jnpserver', version: jnpVersion])
-   testCompile([group: 'com.experlog', name: 'xapool', version: '1.5.0'])
-   testCompile([group: 'jboss.jbossts', name: 'jbossjta', version: '4.9.0.GA'])
-   testCompile(libraries.jta)
-   testCompile(libraries.h2)
-   // testCompile( [group: 'hsqldb', name: 'hsqldb', version: '1.8.0.2'] )
-   testCompile([group: 'org.rhq.helpers', name: 'rhq-pluginAnnotations', version: '1.4.0.B01'])
-   testCompile([group: 'log4j', name: 'log4j', version: '1.2.16'])
-   testRuntime(libraries.javassist)
+    compile project( ':hibernate-core' )
+    compile "org.infinispan:infinispan-core:${infinispanVersion}"
+    compile "org.rhq.helpers:rhq-pluginAnnotations:3.0.4"
+
+    testCompile project( ':hibernate-testing' )
+    testCompile "org.infinispan:infinispan-core:${infinispanVersion}:tests@jar"
+    testCompile "org.jboss:jboss-common-core:2.2.14.GA"
+    testCompile "org.jboss.naming:jnp-client:${jnpVersion}"
+    testCompile "org.jboss.naming:jnpserver:${jnpVersion}"
+    testCompile "org.rhq.helpers:rhq-pluginAnnotations:1.4.0.B01"
 }
 
 test {
@@ -47,6 +26,8 @@ test {
    systemProperties['jgroups.ping.num_initial_members'] = 1
    systemProperties['jgroups.udp.enable_bundling'] = false
    systemProperties['jgroups.bind_addr'] = 'localhost'
+   // Use Infinispan's test JGroups stack that uses TEST_PING
+   systemProperties['hibernate.cache.infinispan.jgroups_cfg'] = 'stacks/tcp.xml'
    //   systemProperties['log4j.configuration'] = 'file:/log4j/log4j-infinispan.xml'
    enabled = true
 }

@@ -27,15 +27,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.junit.Test;
+
 import org.hibernate.Hibernate;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
 import org.hibernate.hql.internal.ast.ASTQueryTranslatorFactory;
-
-import org.junit.Test;
-
 import org.hibernate.testing.FailureExpected;
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
@@ -190,6 +189,16 @@ public class ASTParserLoadingOrderByTest extends BaseCoreFunctionalTestCase {
 			s.delete( stateProvince );
 		}
 		t.commit();
+		s.close();
+	}
+
+	@Test
+	public void testOrderByOnJoinedSubclassPropertyWhoseColumnIsNotInDrivingTable() {
+		// this is simply a syntax check
+		Session s = openSession();
+		Transaction t = s.beginTransaction();
+		s.createQuery( "from Human h order by h.bodyWeight" ).list();
+		s.getTransaction().commit();
 		s.close();
 	}
 
@@ -576,7 +585,7 @@ public class ASTParserLoadingOrderByTest extends BaseCoreFunctionalTestCase {
 		cleanupData();
 	}
 
-	@Test
+	@Test(timeout = 5 * 60 * 1000)
 	public void testOrderBySelectNewMapArgAliasRef() {
 		createData();
 

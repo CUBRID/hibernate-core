@@ -23,6 +23,10 @@
  */
 package org.hibernate.test.annotations.access.jpa;
 
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
 import org.hibernate.MappingException;
 import org.hibernate.cfg.AnnotationConfiguration;
 import org.hibernate.cfg.Environment;
@@ -30,12 +34,12 @@ import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.property.BasicPropertyAccessor;
 import org.hibernate.property.DirectPropertyAccessor;
 import org.hibernate.service.ServiceRegistry;
-import org.hibernate.tuple.entity.EntityTuplizer;
-
-import junit.framework.TestCase;
-
 import org.hibernate.testing.ServiceRegistryBuilder;
 import org.hibernate.testing.TestForIssue;
+import org.hibernate.tuple.entity.EntityTuplizer;
+
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 
 /**
@@ -43,175 +47,187 @@ import org.hibernate.testing.TestForIssue;
  *
  * @author Hardy Ferentschik
  */
-@SuppressWarnings( {"deprecation"})
-public class AccessMappingTest extends TestCase {
-	private ServiceRegistry serviceRegistry;
+@SuppressWarnings({ "deprecation" })
+public class AccessMappingTest {
+    private ServiceRegistry serviceRegistry;
 
-	protected void setUp() {
-		serviceRegistry = ServiceRegistryBuilder.buildServiceRegistry( Environment.getProperties() );
-	}
+    @Before
+    public void setUp() {
+        serviceRegistry = ServiceRegistryBuilder.buildServiceRegistry( Environment.getProperties() );
+    }
 
-	protected void tearDown() {
-		if ( serviceRegistry != null ) {
-			ServiceRegistryBuilder.destroy( serviceRegistry );
-		}
-	}
+    @After
+    public void tearDown() {
+        if ( serviceRegistry != null ) {
+            ServiceRegistryBuilder.destroy( serviceRegistry );
+        }
+    }
 
-	public void testInconsistentAnnotationPlacement() throws Exception {
-		AnnotationConfiguration cfg = new AnnotationConfiguration();
-		cfg.addAnnotatedClass( Course1.class );
-		cfg.addAnnotatedClass( Student.class );
-		try {
-			cfg.buildSessionFactory( serviceRegistry );
-			fail( "@Id and @OneToMany are not placed consistently in test entities. SessionFactory creation should fail." );
-		}
-		catch ( MappingException e ) {
-			// success
-		}
-	}
+    @Test
+    public void testInconsistentAnnotationPlacement() throws Exception {
+        AnnotationConfiguration cfg = new AnnotationConfiguration();
+        cfg.addAnnotatedClass( Course1.class );
+        cfg.addAnnotatedClass( Student.class );
+        try {
+            cfg.buildSessionFactory( serviceRegistry );
+            fail( "@Id and @OneToMany are not placed consistently in test entities. SessionFactory creation should fail." );
+        }
+        catch ( MappingException e ) {
+            // success
+        }
+    }
 
-	public void testFieldAnnotationPlacement() throws Exception {
-		AnnotationConfiguration cfg = new AnnotationConfiguration();
-		Class<?> classUnderTest = Course6.class;
-		cfg.addAnnotatedClass( classUnderTest );
-		cfg.addAnnotatedClass( Student.class );
-		SessionFactoryImplementor factory = ( SessionFactoryImplementor ) cfg.buildSessionFactory( serviceRegistry );
-		EntityTuplizer tuplizer = factory.getEntityPersister( classUnderTest.getName() )
-				.getEntityMetamodel()
-				.getTuplizer();
-		assertTrue(
-				"Field access should be used.",
-				tuplizer.getIdentifierGetter() instanceof DirectPropertyAccessor.DirectGetter
-		);
-	}
+    @Test
+    public void testFieldAnnotationPlacement() throws Exception {
+        AnnotationConfiguration cfg = new AnnotationConfiguration();
+        Class<?> classUnderTest = Course6.class;
+        cfg.addAnnotatedClass( classUnderTest );
+        cfg.addAnnotatedClass( Student.class );
+        SessionFactoryImplementor factory = (SessionFactoryImplementor) cfg.buildSessionFactory( serviceRegistry );
+        EntityTuplizer tuplizer = factory.getEntityPersister( classUnderTest.getName() )
+                .getEntityMetamodel()
+                .getTuplizer();
+        assertTrue(
+                "Field access should be used.",
+                tuplizer.getIdentifierGetter() instanceof DirectPropertyAccessor.DirectGetter
+        );
+    }
 
-	public void testPropertyAnnotationPlacement() throws Exception {
-		AnnotationConfiguration cfg = new AnnotationConfiguration();
-		Class<?> classUnderTest = Course7.class;
-		cfg.addAnnotatedClass( classUnderTest );
-		cfg.addAnnotatedClass( Student.class );
-		SessionFactoryImplementor factory = ( SessionFactoryImplementor ) cfg.buildSessionFactory( serviceRegistry );
-		EntityTuplizer tuplizer = factory.getEntityPersister( classUnderTest.getName() )
-				.getEntityMetamodel()
-				.getTuplizer();
-		assertTrue(
-				"Property access should be used.",
-				tuplizer.getIdentifierGetter() instanceof BasicPropertyAccessor.BasicGetter
-		);
-	}
+    @Test
+    public void testPropertyAnnotationPlacement() throws Exception {
+        AnnotationConfiguration cfg = new AnnotationConfiguration();
+        Class<?> classUnderTest = Course7.class;
+        cfg.addAnnotatedClass( classUnderTest );
+        cfg.addAnnotatedClass( Student.class );
+        SessionFactoryImplementor factory = (SessionFactoryImplementor) cfg.buildSessionFactory( serviceRegistry );
+        EntityTuplizer tuplizer = factory.getEntityPersister( classUnderTest.getName() )
+                .getEntityMetamodel()
+                .getTuplizer();
+        assertTrue(
+                "Property access should be used.",
+                tuplizer.getIdentifierGetter() instanceof BasicPropertyAccessor.BasicGetter
+        );
+    }
 
-	public void testExplicitPropertyAccessAnnotationsOnProperty() throws Exception {
-		AnnotationConfiguration cfg = new AnnotationConfiguration();
-		Class<?> classUnderTest = Course2.class;
-		cfg.addAnnotatedClass( classUnderTest );
-		cfg.addAnnotatedClass( Student.class );
-		SessionFactoryImplementor factory = ( SessionFactoryImplementor ) cfg.buildSessionFactory( serviceRegistry );
-		EntityTuplizer tuplizer = factory.getEntityPersister( classUnderTest.getName() )
-				.getEntityMetamodel()
-				.getTuplizer();
-		assertTrue(
-				"Property access should be used.",
-				tuplizer.getIdentifierGetter() instanceof BasicPropertyAccessor.BasicGetter
-		);
-	}
+    @Test
+    public void testExplicitPropertyAccessAnnotationsOnProperty() throws Exception {
+        AnnotationConfiguration cfg = new AnnotationConfiguration();
+        Class<?> classUnderTest = Course2.class;
+        cfg.addAnnotatedClass( classUnderTest );
+        cfg.addAnnotatedClass( Student.class );
+        SessionFactoryImplementor factory = (SessionFactoryImplementor) cfg.buildSessionFactory( serviceRegistry );
+        EntityTuplizer tuplizer = factory.getEntityPersister( classUnderTest.getName() )
+                .getEntityMetamodel()
+                .getTuplizer();
+        assertTrue(
+                "Property access should be used.",
+                tuplizer.getIdentifierGetter() instanceof BasicPropertyAccessor.BasicGetter
+        );
+    }
 
-	public void testExplicitPropertyAccessAnnotationsOnField() throws Exception {
-		AnnotationConfiguration cfg = new AnnotationConfiguration();
-		cfg.addAnnotatedClass( Course4.class );
-		cfg.addAnnotatedClass( Student.class );
-		try {
-			cfg.buildSessionFactory( serviceRegistry );
-			fail( "@Id and @OneToMany are not placed consistently in test entities. SessionFactory creation should fail." );
-		}
-		catch ( MappingException e ) {
-			// success
-		}
-	}
+    @Test
+    public void testExplicitPropertyAccessAnnotationsOnField() throws Exception {
+        AnnotationConfiguration cfg = new AnnotationConfiguration();
+        cfg.addAnnotatedClass( Course4.class );
+        cfg.addAnnotatedClass( Student.class );
+        try {
+            cfg.buildSessionFactory( serviceRegistry );
+            fail( "@Id and @OneToMany are not placed consistently in test entities. SessionFactory creation should fail." );
+        }
+        catch ( MappingException e ) {
+            // success
+        }
+    }
 
-	public void testExplicitPropertyAccessAnnotationsWithHibernateStyleOverride() throws Exception {
-		AnnotationConfiguration cfg = new AnnotationConfiguration();
-		Class<?> classUnderTest = Course3.class;
-		cfg.addAnnotatedClass( classUnderTest );
-		cfg.addAnnotatedClass( Student.class );
-		SessionFactoryImplementor factory = ( SessionFactoryImplementor ) cfg.buildSessionFactory( serviceRegistry );
-		EntityTuplizer tuplizer = factory.getEntityPersister( classUnderTest.getName() )
-				.getEntityMetamodel()
-				.getTuplizer();
-		assertTrue(
-				"Field access should be used.",
-				tuplizer.getIdentifierGetter() instanceof DirectPropertyAccessor.DirectGetter
-		);
+    @Test
+    public void testExplicitPropertyAccessAnnotationsWithHibernateStyleOverride() throws Exception {
+        AnnotationConfiguration cfg = new AnnotationConfiguration();
+        Class<?> classUnderTest = Course3.class;
+        cfg.addAnnotatedClass( classUnderTest );
+        cfg.addAnnotatedClass( Student.class );
+        SessionFactoryImplementor factory = (SessionFactoryImplementor) cfg.buildSessionFactory( serviceRegistry );
+        EntityTuplizer tuplizer = factory.getEntityPersister( classUnderTest.getName() )
+                .getEntityMetamodel()
+                .getTuplizer();
+        assertTrue(
+                "Field access should be used.",
+                tuplizer.getIdentifierGetter() instanceof DirectPropertyAccessor.DirectGetter
+        );
 
-		assertTrue(
-				"Property access should be used.",
-				tuplizer.getGetter( 0 ) instanceof BasicPropertyAccessor.BasicGetter
-		);
-	}
+        assertTrue(
+                "Property access should be used.",
+                tuplizer.getGetter( 0 ) instanceof BasicPropertyAccessor.BasicGetter
+        );
+    }
 
-	public void testExplicitPropertyAccessAnnotationsWithJpaStyleOverride() throws Exception {
-		AnnotationConfiguration cfg = new AnnotationConfiguration();
-		Class<?> classUnderTest = Course5.class;
-		cfg.addAnnotatedClass( classUnderTest );
-		cfg.addAnnotatedClass( Student.class );
-		SessionFactoryImplementor factory = ( SessionFactoryImplementor ) cfg.buildSessionFactory( serviceRegistry );
-		EntityTuplizer tuplizer = factory.getEntityPersister( classUnderTest.getName() )
-				.getEntityMetamodel()
-				.getTuplizer();
-		assertTrue(
-				"Field access should be used.",
-				tuplizer.getIdentifierGetter() instanceof DirectPropertyAccessor.DirectGetter
-		);
+    @Test
+    public void testExplicitPropertyAccessAnnotationsWithJpaStyleOverride() throws Exception {
+        AnnotationConfiguration cfg = new AnnotationConfiguration();
+        Class<?> classUnderTest = Course5.class;
+        cfg.addAnnotatedClass( classUnderTest );
+        cfg.addAnnotatedClass( Student.class );
+        SessionFactoryImplementor factory = (SessionFactoryImplementor) cfg.buildSessionFactory( serviceRegistry );
+        EntityTuplizer tuplizer = factory.getEntityPersister( classUnderTest.getName() )
+                .getEntityMetamodel()
+                .getTuplizer();
+        assertTrue(
+                "Field access should be used.",
+                tuplizer.getIdentifierGetter() instanceof DirectPropertyAccessor.DirectGetter
+        );
 
-		assertTrue(
-				"Property access should be used.",
-				tuplizer.getGetter( 0 ) instanceof BasicPropertyAccessor.BasicGetter
-		);
-	}
+        assertTrue(
+                "Property access should be used.",
+                tuplizer.getGetter( 0 ) instanceof BasicPropertyAccessor.BasicGetter
+        );
+    }
 
-	public void testDefaultFieldAccessIsInherited() throws Exception {
-		AnnotationConfiguration cfg = new AnnotationConfiguration();
-		Class<?> classUnderTest = User.class;
-		cfg.addAnnotatedClass( classUnderTest );
-		cfg.addAnnotatedClass( Person.class );
-		cfg.addAnnotatedClass( Being.class );
-		SessionFactoryImplementor factory = ( SessionFactoryImplementor ) cfg.buildSessionFactory( serviceRegistry );
-		EntityTuplizer tuplizer = factory.getEntityPersister( classUnderTest.getName() )
-				.getEntityMetamodel()
-				.getTuplizer();
-		assertTrue(
-				"Field access should be used since the default access mode gets inherited",
-				tuplizer.getIdentifierGetter() instanceof DirectPropertyAccessor.DirectGetter
-		);
-	}
+    @Test
+    public void testDefaultFieldAccessIsInherited() throws Exception {
+        AnnotationConfiguration cfg = new AnnotationConfiguration();
+        Class<?> classUnderTest = User.class;
+        cfg.addAnnotatedClass( classUnderTest );
+        cfg.addAnnotatedClass( Person.class );
+        cfg.addAnnotatedClass( Being.class );
+        SessionFactoryImplementor factory = (SessionFactoryImplementor) cfg.buildSessionFactory( serviceRegistry );
+        EntityTuplizer tuplizer = factory.getEntityPersister( classUnderTest.getName() )
+                .getEntityMetamodel()
+                .getTuplizer();
+        assertTrue(
+                "Field access should be used since the default access mode gets inherited",
+                tuplizer.getIdentifierGetter() instanceof DirectPropertyAccessor.DirectGetter
+        );
+    }
 
-	public void testDefaultPropertyAccessIsInherited() throws Exception {
-		AnnotationConfiguration cfg = new AnnotationConfiguration();
-		cfg.addAnnotatedClass( Horse.class );
-		cfg.addAnnotatedClass( Animal.class );
+    @Test
+    public void testDefaultPropertyAccessIsInherited() throws Exception {
+        AnnotationConfiguration cfg = new AnnotationConfiguration();
+        cfg.addAnnotatedClass( Horse.class );
+        cfg.addAnnotatedClass( Animal.class );
 
-		SessionFactoryImplementor factory = ( SessionFactoryImplementor ) cfg.buildSessionFactory( serviceRegistry );
-		EntityTuplizer tuplizer = factory.getEntityPersister( Animal.class.getName() )
-				.getEntityMetamodel()
-				.getTuplizer();
-		assertTrue(
-				"Property access should be used since explicity configured via @Access",
-				tuplizer.getIdentifierGetter() instanceof BasicPropertyAccessor.BasicGetter
-		);
+        SessionFactoryImplementor factory = (SessionFactoryImplementor) cfg.buildSessionFactory( serviceRegistry );
+        EntityTuplizer tuplizer = factory.getEntityPersister( Animal.class.getName() )
+                .getEntityMetamodel()
+                .getTuplizer();
+        assertTrue(
+                "Property access should be used since explicity configured via @Access",
+                tuplizer.getIdentifierGetter() instanceof BasicPropertyAccessor.BasicGetter
+        );
 
-		tuplizer = factory.getEntityPersister( Horse.class.getName() )
-				.getEntityMetamodel()
-				.getTuplizer();
-		assertTrue(
-				"Property access should be used since the default access mode gets inherited",
-				tuplizer.getGetter( 0 ) instanceof BasicPropertyAccessor.BasicGetter
-		);
-	}
+        tuplizer = factory.getEntityPersister( Horse.class.getName() )
+                .getEntityMetamodel()
+                .getTuplizer();
+        assertTrue(
+                "Field access should be used since the default access mode gets inherited",
+                tuplizer.getGetter( 0 ) instanceof DirectPropertyAccessor.DirectGetter
+        );
+    }
 
-	@TestForIssue( jiraKey = "HHH-5004")
-	public void testAccessOnClassAndId() throws Exception {
-		AnnotationConfiguration cfg = new AnnotationConfiguration();
-		cfg.addAnnotatedClass( Course8.class );
-		cfg.addAnnotatedClass( Student.class );
-		cfg.buildSessionFactory( serviceRegistry );
-	}
+    @TestForIssue(jiraKey = "HHH-5004")
+    @Test
+    public void testAccessOnClassAndId() throws Exception {
+        AnnotationConfiguration cfg = new AnnotationConfiguration();
+        cfg.addAnnotatedClass( Course8.class );
+        cfg.addAnnotatedClass( Student.class );
+        cfg.buildSessionFactory( serviceRegistry );
+    }
 }

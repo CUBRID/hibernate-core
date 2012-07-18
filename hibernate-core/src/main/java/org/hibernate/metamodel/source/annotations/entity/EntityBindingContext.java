@@ -29,13 +29,13 @@ import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.Index;
 
 import org.hibernate.cfg.NamingStrategy;
-import org.hibernate.internal.util.Value;
+import org.hibernate.internal.jaxb.Origin;
+import org.hibernate.internal.jaxb.SourceType;
+import org.hibernate.internal.util.ValueHolder;
 import org.hibernate.metamodel.domain.Type;
 import org.hibernate.metamodel.source.LocalBindingContext;
 import org.hibernate.metamodel.source.MappingDefaults;
 import org.hibernate.metamodel.source.MetadataImplementor;
-import org.hibernate.metamodel.source.Origin;
-import org.hibernate.metamodel.source.SourceType;
 import org.hibernate.metamodel.source.annotations.AnnotationBindingContext;
 import org.hibernate.service.ServiceRegistry;
 
@@ -94,7 +94,7 @@ public class EntityBindingContext implements LocalBindingContext, AnnotationBind
 	}
 
 	@Override
-	public Value<Class<?>> makeClassReference(String className) {
+	public ValueHolder<Class<?>> makeClassReference(String className) {
 		return contextDelegate.makeClassReference( className );
 	}
 

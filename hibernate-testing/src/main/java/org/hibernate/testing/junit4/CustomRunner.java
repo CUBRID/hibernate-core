@@ -25,24 +25,27 @@ package org.hibernate.testing.junit4;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import org.jboss.logging.Logger;
-
-import org.hibernate.dialect.Dialect;
-import org.hibernate.internal.util.StringHelper;
-import org.hibernate.testing.DialectCheck;
-import org.hibernate.testing.FailureExpected;
-import org.hibernate.testing.RequiresDialect;
-import org.hibernate.testing.RequiresDialectFeature;
-import org.hibernate.testing.Skip;
-import org.hibernate.testing.SkipForDialect;
 import org.junit.Ignore;
 import org.junit.runner.manipulation.NoTestsRemainException;
 import org.junit.runners.BlockJUnit4ClassRunner;
 import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.InitializationError;
 import org.junit.runners.model.Statement;
+
+import org.hibernate.dialect.Dialect;
+import org.hibernate.internal.util.StringHelper;
+import org.hibernate.internal.util.collections.CollectionHelper;
+import org.hibernate.testing.DialectCheck;
+import org.hibernate.testing.FailureExpected;
+import org.hibernate.testing.RequiresDialect;
+import org.hibernate.testing.RequiresDialectFeature;
+import org.hibernate.testing.Skip;
+import org.hibernate.testing.SkipForDialect;
 
 /**
  * The Hibernate-specific {@link org.junit.runner.Runner} implementation which layers {@link ExtendedFrameworkMethod}
@@ -71,16 +74,43 @@ public class CustomRunner extends BlockJUnit4ClassRunner {
 		return testClassMetadata;
 	}
 
-	@Override
-	protected Statement withBeforeClasses(Statement statement) {
-		return new BeforeClassCallbackHandler(
-				this,
-				super.withBeforeClasses( statement )
-		);
-	}
+    private Boolean isAllTestsIgnored = null;
+
+    private boolean isAllTestsIgnored() {
+        if ( isAllTestsIgnored == null ) {
+            if ( computeTestMethods().isEmpty() ) {
+                isAllTestsIgnored = true;
+            }
+            else {
+                isAllTestsIgnored = true;
+                for ( FrameworkMethod method : computeTestMethods() ) {
+                    Ignore ignore = method.getAnnotation( Ignore.class );
+                    if ( ignore == null ) {
+                        isAllTestsIgnored = false;
+                        break;
+                    }
+                }
+            }
+        }
+        return isAllTestsIgnored;
+    }
+
+    @Override
+    protected Statement withBeforeClasses(Statement statement) {
+        if ( isAllTestsIgnored() ) {
+            return super.withBeforeClasses( statement );
+        }
+        return new BeforeClassCallbackHandler(
+                this,
+                super.withBeforeClasses( statement )
+        );
+    }
 
 	@Override
 	protected Statement withAfterClasses(Statement statement) {
+        if ( isAllTestsIgnored() ) {
+            return super.withAfterClasses( statement );
+        }
 		return new AfterClassCallbackHandler(
 				this,
 				super.withAfterClasses( statement )
@@ -115,8 +145,19 @@ public class CustomRunner extends BlockJUnit4ClassRunner {
 	protected List<FrameworkMethod> computeTestMethods() {
 		if ( computedTestMethods == null ) {
 			computedTestMethods = doComputation();
+			sortMethods(computedTestMethods);
 		}
 		return computedTestMethods;
+	}
+
+	protected void sortMethods(List<FrameworkMethod> computedTestMethods) {
+		if( CollectionHelper.isEmpty( computedTestMethods ))return;
+		Collections.sort( computedTestMethods, new Comparator<FrameworkMethod>() {
+			@Override
+			public int compare(FrameworkMethod o1, FrameworkMethod o2) {
+				return o1.getName().compareTo( o2.getName() );
+			}
+		} );
 	}
 
 	protected List<FrameworkMethod> doComputation() {
@@ -224,11 +265,13 @@ public class CustomRunner extends BlockJUnit4ClassRunner {
 		// @RequiresDialectFeature
 		RequiresDialectFeature requiresDialectFeatureAnn = Helper.locateAnnotation( RequiresDialectFeature.class, frameworkMethod, getTestClass() );
 		if ( requiresDialectFeatureAnn != null ) {
-			Class<? extends DialectCheck> checkClass = requiresDialectFeatureAnn.value();
 			try {
-				DialectCheck check = checkClass.newInstance();
-				if ( !check.isMatch( dialect ) ) {
-					return buildIgnore( requiresDialectFeatureAnn );
+				boolean foundMatch = false;
+				for ( Class<? extends DialectCheck> checkClass : requiresDialectFeatureAnn.value() ) {
+					foundMatch = checkClass.newInstance().isMatch( dialect );
+					if ( !foundMatch ) {
+						return buildIgnore( requiresDialectFeatureAnn );
+					}
 				}
 			}
 			catch (RuntimeException e) {

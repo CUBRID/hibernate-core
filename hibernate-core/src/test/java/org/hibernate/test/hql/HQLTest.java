@@ -32,6 +32,7 @@ import java.util.Map;
 
 import antlr.RecognitionException;
 import antlr.collections.AST;
+import org.junit.Test;
 
 import org.hibernate.QueryException;
 import org.hibernate.dialect.DB2Dialect;
@@ -40,6 +41,7 @@ import org.hibernate.dialect.HSQLDialect;
 import org.hibernate.dialect.IngresDialect;
 import org.hibernate.dialect.MySQLDialect;
 import org.hibernate.dialect.Oracle8iDialect;
+import org.hibernate.dialect.PostgreSQL81Dialect;
 import org.hibernate.dialect.PostgreSQLDialect;
 import org.hibernate.dialect.SQLServerDialect;
 import org.hibernate.dialect.Sybase11Dialect;
@@ -50,8 +52,6 @@ import org.hibernate.dialect.function.SQLFunction;
 import org.hibernate.engine.query.spi.HQLQueryPlan;
 import org.hibernate.engine.query.spi.ReturnMetadata;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
-import org.hibernate.hql.spi.QueryTranslator;
-import org.hibernate.hql.spi.QueryTranslatorFactory;
 import org.hibernate.hql.internal.antlr.HqlTokenTypes;
 import org.hibernate.hql.internal.ast.ASTQueryTranslatorFactory;
 import org.hibernate.hql.internal.ast.DetailedSemanticException;
@@ -65,23 +65,22 @@ import org.hibernate.hql.internal.ast.tree.IndexNode;
 import org.hibernate.hql.internal.ast.tree.QueryNode;
 import org.hibernate.hql.internal.ast.tree.SelectClause;
 import org.hibernate.hql.internal.ast.util.ASTUtil;
-import org.hibernate.type.CalendarDateType;
-import org.hibernate.type.DoubleType;
-import org.hibernate.type.StringType;
-
+import org.hibernate.hql.spi.QueryTranslator;
+import org.hibernate.hql.spi.QueryTranslatorFactory;
 import org.hibernate.testing.DialectChecks;
 import org.hibernate.testing.FailureExpected;
 import org.hibernate.testing.RequiresDialectFeature;
 import org.hibernate.testing.SkipForDialect;
 import org.hibernate.testing.TestForIssue;
+import org.hibernate.type.CalendarDateType;
+import org.hibernate.type.DoubleType;
+import org.hibernate.type.StringType;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-
-import org.junit.Test;
 
 /**
  * Tests cases where the AST based query translator and the 'classic' query translator generate identical SQL.
@@ -141,8 +140,8 @@ public class HQLTest extends QueryTranslatorTestCase {
     }
 
 	@Test
-	@RequiresDialectFeature( DialectChecks.SupportsRowValueConstructorSyntaxInInListCheck .class )
-    public void testRowValueConstructorSyntaxInInList() {
+	@SkipForDialect( Oracle8iDialect.class )
+    public void testRowValueConstructorSyntaxInInListBeingTranslated() {
 		QueryTranslatorImpl translator = createNewQueryTranslator("from LineItem l where l.id in (?)");
 		assertInExist("'in' should be translated to 'and'", false, translator);
 		translator = createNewQueryTranslator("from LineItem l where l.id in ?");
@@ -150,19 +149,36 @@ public class HQLTest extends QueryTranslatorTestCase {
 		translator = createNewQueryTranslator("from LineItem l where l.id in (('a1',1,'b1'),('a2',2,'b2'))");
 		assertInExist("'in' should be translated to 'and'", false, translator);
 		translator = createNewQueryTranslator("from Animal a where a.id in (?)");
-		assertInExist("only translate tuple with 'in' syntax", true, translator);
+		assertInExist("only translated tuple has 'in' syntax", true, translator);
 		translator = createNewQueryTranslator("from Animal a where a.id in ?");
-		assertInExist("only translate tuple with 'in' syntax", true, translator);
+		assertInExist("only translated tuple has 'in' syntax", true, translator);
 		translator = createNewQueryTranslator("from LineItem l where l.id in (select a1 from Animal a1 left join a1.offspring o where a1.id = 1)");
-		assertInExist("do not translate subqueries", true, translator);
+		assertInExist("do not translate sub-queries", true, translator);
+    }
 
+	@Test
+	@RequiresDialectFeature( DialectChecks.SupportsRowValueConstructorSyntaxInInListCheck.class )
+    public void testRowValueConstructorSyntaxInInList() {
+		QueryTranslatorImpl translator = createNewQueryTranslator("from LineItem l where l.id in (?)");
+		assertInExist(" 'in' should be kept, since the dialect supports this syntax", true, translator);
+		translator = createNewQueryTranslator("from LineItem l where l.id in ?");
+		assertInExist(" 'in' should be kept, since the dialect supports this syntax", true, translator);
+		translator = createNewQueryTranslator("from LineItem l where l.id in (('a1',1,'b1'),('a2',2,'b2'))");
+		assertInExist(" 'in' should be kept, since the dialect supports this syntax", true,translator);
+		translator = createNewQueryTranslator("from Animal a where a.id in (?)");
+		assertInExist("only translated tuple has 'in' syntax", true, translator);
+		translator = createNewQueryTranslator("from Animal a where a.id in ?");
+		assertInExist("only translated tuple has 'in' syntax", true, translator);
+		translator = createNewQueryTranslator("from LineItem l where l.id in (select a1 from Animal a1 left join a1.offspring o where a1.id = 1)");
+		assertInExist("do not translate sub-queries", true, translator);
     }
 
 	private void assertInExist( String message, boolean expected, QueryTranslatorImpl translator ) {
 		AST ast = translator.getSqlAST().getWalker().getAST();
 		QueryNode queryNode = (QueryNode) ast;
-		AST inNode = ASTUtil.findTypeInChildren( queryNode, HqlTokenTypes.IN );
-		assertEquals( message, expected, inNode != null );
+		AST whereNode = ASTUtil.findTypeInChildren( queryNode, HqlTokenTypes.WHERE );
+		AST inNode = whereNode.getFirstChild();
+		assertEquals( message, expected, inNode != null && inNode.getType() == HqlTokenTypes.IN );
 	}
     
 	@Test
@@ -339,7 +355,7 @@ public class HQLTest extends QueryTranslatorTestCase {
 		if ( !( getDialect() instanceof MySQLDialect ) && ! ( getDialect() instanceof SybaseDialect ) && ! ( getDialect() instanceof Sybase11Dialect ) && !( getDialect() instanceof SybaseASE15Dialect ) && ! ( getDialect() instanceof SybaseAnywhereDialect ) && ! ( getDialect() instanceof SQLServerDialect ) ) {
 			assertTranslation("from Animal where lower(upper('foo') || upper(:bar)) like 'f%'");
 		}
-		if ( getDialect() instanceof PostgreSQLDialect ) {
+		if ( getDialect() instanceof PostgreSQLDialect || getDialect() instanceof PostgreSQL81Dialect ) {
 			return;
 		}
 		assertTranslation("from Animal where abs(cast(1 as float) - cast(:param as float)) = 1.0");
@@ -823,7 +839,7 @@ public class HQLTest extends QueryTranslatorTestCase {
 	@Test
 	public void testGroupByFunction() {
 		if ( getDialect() instanceof Oracle8iDialect ) return; // the new hiearchy...
-		if ( getDialect() instanceof PostgreSQLDialect ) return;
+		if ( getDialect() instanceof PostgreSQLDialect || getDialect() instanceof PostgreSQL81Dialect ) return;
 		if ( ! H2Dialect.class.isInstance( getDialect() ) ) {
 			// H2 has no year function
 			assertTranslation( "select count(*) from Human h group by year(h.birthdate)" );

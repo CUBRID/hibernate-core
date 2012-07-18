@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.jboss.logging.Logger;
+import org.junit.Test;
 
 import org.hibernate.Hibernate;
 import org.hibernate.HibernateException;
@@ -52,7 +53,9 @@ import org.hibernate.dialect.HSQLDialect;
 import org.hibernate.dialect.IngresDialect;
 import org.hibernate.dialect.MySQLDialect;
 import org.hibernate.dialect.Oracle8iDialect;
+import org.hibernate.dialect.PostgreSQL81Dialect;
 import org.hibernate.dialect.PostgreSQLDialect;
+import org.hibernate.dialect.SQLServer2008Dialect;
 import org.hibernate.dialect.SQLServerDialect;
 import org.hibernate.dialect.Sybase11Dialect;
 import org.hibernate.dialect.SybaseASE15Dialect;
@@ -62,20 +65,6 @@ import org.hibernate.hql.internal.ast.ASTQueryTranslatorFactory;
 import org.hibernate.internal.util.StringHelper;
 import org.hibernate.persister.entity.DiscriminatorType;
 import org.hibernate.stat.QueryStatistics;
-import org.hibernate.transform.DistinctRootEntityResultTransformer;
-import org.hibernate.transform.Transformers;
-import org.hibernate.type.ComponentType;
-import org.hibernate.type.ManyToOneType;
-import org.hibernate.type.Type;
-
-import org.junit.Test;
-
-import org.hibernate.testing.DialectChecks;
-import org.hibernate.testing.FailureExpected;
-import org.hibernate.testing.RequiresDialectFeature;
-import org.hibernate.testing.SkipForDialect;
-import org.hibernate.testing.TestForIssue;
-import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 import org.hibernate.test.any.IntegerPropertyValue;
 import org.hibernate.test.any.PropertySet;
 import org.hibernate.test.any.PropertyValue;
@@ -85,6 +74,17 @@ import org.hibernate.test.cid.LineItem;
 import org.hibernate.test.cid.LineItem.Id;
 import org.hibernate.test.cid.Order;
 import org.hibernate.test.cid.Product;
+import org.hibernate.testing.DialectChecks;
+import org.hibernate.testing.FailureExpected;
+import org.hibernate.testing.RequiresDialectFeature;
+import org.hibernate.testing.SkipForDialect;
+import org.hibernate.testing.TestForIssue;
+import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
+import org.hibernate.transform.DistinctRootEntityResultTransformer;
+import org.hibernate.transform.Transformers;
+import org.hibernate.type.ComponentType;
+import org.hibernate.type.ManyToOneType;
+import org.hibernate.type.Type;
 
 import static org.hibernate.testing.junit4.ExtraAssertions.assertClassAssignability;
 import static org.junit.Assert.assertEquals;
@@ -109,7 +109,10 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 	private static final Logger log = Logger.getLogger( ASTParserLoadingTest.class );
 
 	private List<Long> createdAnimalIds = new ArrayList<Long>();
-
+	@Override
+	protected boolean isCleanupTestDataRequired() {
+		return true;
+	}
 	@Override
 	public String[] getMappings() {
 		return new String[] {
@@ -247,7 +250,7 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 
 	@Test
 	@SuppressWarnings( {"unchecked"})
-	public void testJPAQLQualifiedIdentificationVariables() {
+	public void testJPAQLMapKeyQualifier() {
 		Session s = openSession();
 		s.beginTransaction();
 		Human me = new Human();
@@ -261,26 +264,183 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 		s.getTransaction().commit();
 		s.close();
 
-		s = openSession();
-		s.beginTransaction();
-		List results = s.createQuery( "select entry(h.family) from Human h" ).list();
-		assertEquals( 1, results.size() );
-		Object result = results.get(0);
-		assertTrue( Map.Entry.class.isAssignableFrom( result.getClass() ) );
-		Map.Entry entry = (Map.Entry) result;
-		assertTrue( String.class.isAssignableFrom( entry.getKey().getClass() ) );
-		assertTrue( Human.class.isAssignableFrom( entry.getValue().getClass() ) );
-		s.getTransaction().commit();
-		s.close();
+		// in SELECT clause
+		{
+			// hibernate-only form
+			s = openSession();
+			s.beginTransaction();
+			List results = s.createQuery( "select distinct key(h.family) from Human h" ).list();
+			assertEquals( 1, results.size() );
+			Object key = results.get(0);
+			assertTrue( String.class.isAssignableFrom( key.getClass() ) );
+			s.getTransaction().commit();
+			s.close();
+		}
+
+		{
+			// jpa form
+			s = openSession();
+			s.beginTransaction();
+			List results = s.createQuery( "select distinct KEY(f) from Human h join h.family f" ).list();
+			assertEquals( 1, results.size() );
+			Object key = results.get(0);
+			assertTrue( String.class.isAssignableFrom( key.getClass() ) );
+			s.getTransaction().commit();
+			s.close();
+		}
+
+		// in WHERE clause
+		{
+			// hibernate-only form
+			s = openSession();
+			s.beginTransaction();
+			Long count = (Long) s.createQuery( "select count(*) from Human h where KEY(h.family) = 'son'" ).uniqueResult();
+			assertEquals( (Long)1L, count );
+			s.getTransaction().commit();
+			s.close();
+		}
+
+		{
+			// jpa form
+			s = openSession();
+			s.beginTransaction();
+			Long count = (Long) s.createQuery( "select count(*) from Human h join h.family f where key(f) = 'son'" ).uniqueResult();
+			assertEquals( (Long)1L, count );
+			s.getTransaction().commit();
+			s.close();
+		}
 
 		s = openSession();
 		s.beginTransaction();
-		results = s.createQuery( "select distinct key(h.family) from Human h" ).list();
-		assertEquals( 1, results.size() );
-		Object key = results.get(0);
-		assertTrue( String.class.isAssignableFrom( key.getClass() ) );
+		s.delete( me );
+		s.delete( joe );
 		s.getTransaction().commit();
 		s.close();
+	}
+
+	@Test
+	@SuppressWarnings( {"unchecked"})
+	public void testJPAQLMapEntryQualifier() {
+		Session s = openSession();
+		s.beginTransaction();
+		Human me = new Human();
+		me.setName( new Name( "Steve", null, "Ebersole" ) );
+		Human joe = new Human();
+		me.setName( new Name( "Joe", null, "Ebersole" ) );
+		me.setFamily( new HashMap() );
+		me.getFamily().put( "son", joe );
+		s.save( me );
+		s.save( joe );
+		s.getTransaction().commit();
+		s.close();
+
+		// in SELECT clause
+		{
+			// hibernate-only form
+			s = openSession();
+			s.beginTransaction();
+			List results = s.createQuery( "select entry(h.family) from Human h" ).list();
+			assertEquals( 1, results.size() );
+			Object result = results.get(0);
+			assertTrue( Map.Entry.class.isAssignableFrom( result.getClass() ) );
+			Map.Entry entry = (Map.Entry) result;
+			assertTrue( String.class.isAssignableFrom( entry.getKey().getClass() ) );
+			assertTrue( Human.class.isAssignableFrom( entry.getValue().getClass() ) );
+			s.getTransaction().commit();
+			s.close();
+		}
+
+		{
+			// jpa form
+			s = openSession();
+			s.beginTransaction();
+			List results = s.createQuery( "select ENTRY(f) from Human h join h.family f" ).list();
+			assertEquals( 1, results.size() );
+			Object result = results.get(0);
+			assertTrue( Map.Entry.class.isAssignableFrom( result.getClass() ) );
+			Map.Entry entry = (Map.Entry) result;
+			assertTrue( String.class.isAssignableFrom( entry.getKey().getClass() ) );
+			assertTrue( Human.class.isAssignableFrom( entry.getValue().getClass() ) );
+			s.getTransaction().commit();
+			s.close();
+		}
+
+		// not exactly sure of the syntax of ENTRY in the WHERE clause...
+
+
+		s = openSession();
+		s.beginTransaction();
+		s.delete( me );
+		s.delete( joe );
+		s.getTransaction().commit();
+		s.close();
+	}
+
+	@Test
+	@SuppressWarnings( {"unchecked"})
+	public void testJPAQLMapValueQualifier() {
+		Session s = openSession();
+		s.beginTransaction();
+		Human me = new Human();
+		me.setName( new Name( "Steve", null, "Ebersole" ) );
+		Human joe = new Human();
+		me.setName( new Name( "Joe", null, "Ebersole" ) );
+		me.setFamily( new HashMap() );
+		me.getFamily().put( "son", joe );
+		s.save( me );
+		s.save( joe );
+		s.getTransaction().commit();
+		s.close();
+
+		// in SELECT clause
+		{
+			// hibernate-only form
+			s = openSession();
+			s.beginTransaction();
+			List results = s.createQuery( "select value(h.family) from Human h" ).list();
+			assertEquals( 1, results.size() );
+			Object result = results.get(0);
+			assertTrue( Human.class.isAssignableFrom( result.getClass() ) );
+			s.getTransaction().commit();
+			s.close();
+		}
+
+		{
+			// jpa form
+			s = openSession();
+			s.beginTransaction();
+			List results = s.createQuery( "select VALUE(f) from Human h join h.family f" ).list();
+			assertEquals( 1, results.size() );
+			Object result = results.get(0);
+			assertTrue( Human.class.isAssignableFrom( result.getClass() ) );
+			s.getTransaction().commit();
+			s.close();
+		}
+
+		// in WHERE clause
+		{
+			// hibernate-only form
+			s = openSession();
+			s.beginTransaction();
+			Long count = (Long) s.createQuery( "select count(*) from Human h where VALUE(h.family) = :joe" ).setParameter( "joe", joe ).uniqueResult();
+			// ACTUALLY EXACTLY THE SAME AS:
+			// select count(*) from Human h where h.family = :joe
+			assertEquals( (Long)1L, count );
+			s.getTransaction().commit();
+			s.close();
+		}
+
+		{
+			// jpa form
+			s = openSession();
+			s.beginTransaction();
+			Long count = (Long) s.createQuery( "select count(*) from Human h join h.family f where value(f) = :joe" ).setParameter( "joe", joe ).uniqueResult();
+			// ACTUALLY EXACTLY THE SAME AS:
+			// select count(*) from Human h join h.family f where f = :joe
+			assertEquals( (Long)1L, count );
+			s.getTransaction().commit();
+			s.close();
+		}
 
 		s = openSession();
 		s.beginTransaction();
@@ -449,7 +609,7 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 		else {
 			s.createQuery( "from Animal where lower(upper('foo') || upper(:bar)) like 'f%'" ).setString( "bar", "xyz" ).list();
 		}
-		if ( ! ( getDialect() instanceof PostgreSQLDialect || getDialect() instanceof MySQLDialect ) ) {
+		if ( ! ( getDialect() instanceof PostgreSQLDialect|| getDialect() instanceof PostgreSQL81Dialect || getDialect() instanceof MySQLDialect ) ) {
 			s.createQuery( "from Animal where abs(cast(1 as float) - cast(:param as float)) = 1.0" ).setLong( "param", 1 ).list();
 		}
 		s.getTransaction().commit();
@@ -634,6 +794,26 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 		}
 		return count;
 	}
+
+    @Test
+    @TestForIssue( jiraKey = "HHH-6714" )
+    public void testUnaryMinus(){
+        Session s = openSession();
+        s.beginTransaction();
+        Human stliu = new Human();
+        stliu.setIntValue( 26 );
+
+        s.persist( stliu );
+        s.getTransaction().commit();
+        s.clear();
+        s.beginTransaction();
+        List list =s.createQuery( "from Human h where -(h.intValue - 100)=74" ).list();
+        assertEquals( 1, list.size() );
+        s.getTransaction().commit();
+        s.close();
+
+
+    }
 
 	@Test
 	public void testEntityAndOneToOneReturnedByQuery() {
@@ -1370,7 +1550,7 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 		t.commit();
 		s.close();
 	}
-	
+
 	@Test
 	public void testOrderedWithCustomColumnReadAndWrite() {
 		Session s = openSession();
@@ -1384,7 +1564,7 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 		s.flush();
 
 		// Check order via SQL. Numbers are negated in the DB, so second comes first.
-		List listViaSql = s.createSQLQuery("select id from simple_1 order by negated_num").list();
+		List listViaSql = s.createSQLQuery("select id from SIMPLE_1 order by negated_num").list();
 		assertEquals( 2, listViaSql.size() );
 		assertEquals( second.getId().longValue(), ((Number) listViaSql.get( 0 )).longValue() );
 		assertEquals( first.getId().longValue(), ((Number) listViaSql.get( 1 )).longValue() );
@@ -1400,7 +1580,7 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 		t.commit();
 		s.close();
 	}
-	
+
 	@Test
 	public void testHavingWithCustomColumnReadAndWrite() {
 		Session s = openSession();
@@ -1445,7 +1625,9 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 		s.persist( image );
 		s.flush();
 
-		Double sizeViaSql = (Double)s.createSQLQuery("select size_mb from image").uniqueResult();
+		// Value returned by Oracle is a Types.NUMERIC, which is mapped to a BigDecimalType;
+		// Cast returned value to Number then call Number.doubleValue() so it works on all dialects.
+		Double sizeViaSql = ( (Number)s.createSQLQuery("select size_mb from image").uniqueResult() ).doubleValue();
 		assertEquals(SIZE_IN_MB, sizeViaSql, 0.01d);
 		t.commit();
 		s.close();
@@ -1458,14 +1640,14 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 		s.update( image );
 		s.flush();
 
-		sizeViaSql = (Double)s.createSQLQuery("select size_mb from image").uniqueResult();
+		sizeViaSql = ( (Number)s.createSQLQuery("select size_mb from image").uniqueResult() ).doubleValue();
 		assertEquals(NEW_SIZE_IN_MB, sizeViaSql, 0.01d);
 
 		s.delete(image);
 		t.commit();
 		s.close();
 	}
-		
+
 	private Human genSimpleHuman(String fName, String lName) {
 		Human h = new Human();
 		h.setName( new Name( fName, 'X', lName ) );
@@ -1686,6 +1868,7 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 	}
 
 	@Test
+    @SkipForDialect( value = SybaseASE15Dialect.class, jiraKey = "HHH-6424")
 	@SuppressWarnings( {"UnnecessaryUnboxing"})
 	public void testAggregation() {
 		Session s = openSession();
@@ -1730,7 +1913,8 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 		assertEquals( 3L, results[2] );
 		// avg() should return a double
 		assertTrue( Double.class.isInstance( results[3] ) );
-		assertEquals( 1.5D, results[3] );
+		if (getDialect() instanceof SQLServer2008Dialect) assertEquals( 1.0D, results[3] );
+		else assertEquals( 1.5D, results[3] );
 		s.delete(h);
 		s.delete(h2);
 		s.getTransaction().commit();
@@ -2423,16 +2607,19 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 	public void testCachedJoinedAndJoinFetchedManyToOne() throws Exception {
 		Animal a = new Animal();
 		a.setDescription( "an animal" );
+
 		Animal mother = new Animal();
 		mother.setDescription( "a mother" );
 		mother.addOffspring( a );
 		a.setMother( mother );
+
 		Animal offspring1 = new Animal();
 		offspring1.setDescription( "offspring1" );
-		Animal offspring2 = new Animal();
-		offspring1.setDescription( "offspring2" );
 		a.addOffspring( offspring1 );
 		offspring1.setMother( a );
+
+		Animal offspring2 = new Animal();
+		offspring2.setDescription( "offspring2" );
 		a.addOffspring( offspring2 );
 		offspring2.setMother( a );
 
@@ -2459,7 +2646,10 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 		list = s.createQuery( "select a, m from Animal a left join a.mother m" ).setCacheable( true ).list();
 		assertEquals( 1, sessionFactory().getStatistics().getQueryCacheHitCount() );
 		assertEquals( 2, sessionFactory().getStatistics().getQueryCachePutCount() );
-		s.createQuery( "delete from Animal" ).executeUpdate();
+		list = s.createQuery( "from Animal" ).list();
+		for(Object obj : list){
+			s.delete( obj );
+		}
 		t.commit();
 		s.close();
 	}
@@ -2505,7 +2695,10 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 		list = s.createQuery( "select a, o from Animal a left join a.offspring o" ).setCacheable( true ).list();
 		assertEquals( 1, sessionFactory().getStatistics().getQueryCacheHitCount() );
 		assertEquals( 2, sessionFactory().getStatistics().getQueryCachePutCount() );
-		s.createQuery( "delete from Animal" ).executeUpdate();
+		list = s.createQuery( "from Animal" ).list();
+		for ( Object obj : list ) {
+			s.delete( obj );
+		}
 		t.commit();
 		s.close();
 	}
@@ -2716,7 +2909,7 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 		 * PostgreSQL >= 8.3.7 typecasts are no longer automatically allowed
 		 * <link>http://www.postgresql.org/docs/current/static/release-8-3.html</link>
 		 */
-		if(getDialect() instanceof PostgreSQLDialect || getDialect() instanceof HSQLDialect){
+		if(getDialect() instanceof PostgreSQLDialect || getDialect() instanceof PostgreSQL81Dialect || getDialect() instanceof HSQLDialect){
 			hql = "from Animal a where bit_length(str(a.bodyWeight)) = 24";
 		}
 		else{
@@ -2724,7 +2917,7 @@ public class ASTParserLoadingTest extends BaseCoreFunctionalTestCase {
 		}
 
 		session.createQuery(hql).list();
-		if(getDialect() instanceof PostgreSQLDialect || getDialect() instanceof HSQLDialect){
+		if(getDialect() instanceof PostgreSQLDialect || getDialect() instanceof PostgreSQL81Dialect || getDialect() instanceof HSQLDialect){
 			hql = "select bit_length(str(a.bodyWeight)) from Animal a";
 		}else{
 			hql = "select bit_length(a.bodyWeight) from Animal a";

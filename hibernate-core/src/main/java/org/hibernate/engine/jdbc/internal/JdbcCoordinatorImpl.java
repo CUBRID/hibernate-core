@@ -28,9 +28,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.sql.Connection;
 import java.sql.SQLException;
+
+import org.jboss.logging.Logger;
+
 import org.hibernate.HibernateException;
-import org.hibernate.internal.CoreMessageLogger;
-import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.hibernate.TransactionException;
 import org.hibernate.engine.jdbc.batch.spi.Batch;
 import org.hibernate.engine.jdbc.batch.spi.BatchBuilder;
 import org.hibernate.engine.jdbc.batch.spi.BatchKey;
@@ -38,14 +40,14 @@ import org.hibernate.engine.jdbc.spi.JdbcCoordinator;
 import org.hibernate.engine.jdbc.spi.LogicalConnectionImplementor;
 import org.hibernate.engine.jdbc.spi.SqlExceptionHelper;
 import org.hibernate.engine.jdbc.spi.StatementPreparer;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.engine.transaction.internal.TransactionCoordinatorImpl;
 import org.hibernate.engine.transaction.spi.TransactionContext;
 import org.hibernate.engine.transaction.spi.TransactionCoordinator;
 import org.hibernate.engine.transaction.spi.TransactionEnvironment;
-import org.hibernate.jdbc.WorkExecutorVisitable;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.jdbc.WorkExecutor;
-
-import org.jboss.logging.Logger;
+import org.hibernate.jdbc.WorkExecutorVisitable;
 
 /**
  * Standard Hibernate implementation of {@link JdbcCoordinator}
@@ -55,14 +57,16 @@ import org.jboss.logging.Logger;
  * @author Steve Ebersole
  */
 public class JdbcCoordinatorImpl implements JdbcCoordinator {
-
-    private static final CoreMessageLogger LOG = Logger.getMessageLogger(CoreMessageLogger.class, JdbcCoordinatorImpl.class.getName());
+    private static final CoreMessageLogger LOG = Logger.getMessageLogger(
+			CoreMessageLogger.class, JdbcCoordinatorImpl.class.getName()
+	);
 
 	private transient TransactionCoordinatorImpl transactionCoordinator;
-
 	private final transient LogicalConnectionImpl logicalConnection;
 
 	private transient Batch currentBatch;
+
+	private transient long transactionTimeOutInstant = -1;
 
 	public JdbcCoordinatorImpl(
 			Connection userSuppliedConnection,
@@ -131,7 +135,7 @@ public class JdbcCoordinatorImpl implements JdbcCoordinator {
 	@Override
 	public Connection close() {
 		if ( currentBatch != null ) {
-            LOG.closingUnreleasedBatch();
+			LOG.closingUnreleasedBatch();
 			currentBatch.release();
 		}
 		return logicalConnection.close();
@@ -153,6 +157,14 @@ public class JdbcCoordinatorImpl implements JdbcCoordinator {
 	}
 
 	@Override
+	public void executeBatch() {
+		if ( currentBatch != null ) {
+			currentBatch.execute();
+			currentBatch.release(); // needed?
+		}
+	}
+
+	@Override
 	public void abortBatch() {
 		if ( currentBatch != null ) {
 			currentBatch.release();
@@ -170,20 +182,26 @@ public class JdbcCoordinatorImpl implements JdbcCoordinator {
 	}
 
 	@Override
-	public void setTransactionTimeOut(int timeOut) {
-		getStatementPreparer().setTransactionTimeOut( timeOut );
+	public void setTransactionTimeOut(int seconds) {
+		transactionTimeOutInstant = System.currentTimeMillis() + ( seconds * 1000 );
 	}
 
-	/**
-	 * To be called after local transaction completion.  Used to conditionally
-	 * release the JDBC connection aggressively if the configured release mode
-	 * indicates.
-	 */
+	@Override
+	public int determineRemainingTransactionTimeOutPeriod() {
+		if ( transactionTimeOutInstant < 0 ) {
+			return -1;
+		}
+		final int secondsRemaining = (int) ((transactionTimeOutInstant - System.currentTimeMillis()) / 1000);
+		if ( secondsRemaining <= 0 ) {
+			throw new TransactionException( "transaction timeout expired" );
+		}
+		return secondsRemaining;
+	}
+
+	@Override
 	public void afterTransaction() {
 		logicalConnection.afterTransaction();
-		if ( statementPreparer != null ) {
-			statementPreparer.unsetTransactionTimeOut();
-		}
+		transactionTimeOutInstant = -1;
 	}
 
 	@Override
@@ -204,15 +222,8 @@ public class JdbcCoordinatorImpl implements JdbcCoordinator {
 				}
 			}
 			catch (SQLException e) {
-                LOG.debug("Error closing connection proxy", e);
+				LOG.debug( "Error closing connection proxy", e );
 			}
-		}
-	}
-
-	public void executeBatch() {
-		if ( currentBatch != null ) {
-			currentBatch.execute();
-			currentBatch.release(); // needed?
 		}
 	}
 

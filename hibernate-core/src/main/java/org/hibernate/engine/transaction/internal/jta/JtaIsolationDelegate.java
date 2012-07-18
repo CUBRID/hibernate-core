@@ -29,16 +29,17 @@ import javax.transaction.NotSupportedException;
 import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
+
+import org.jboss.logging.Logger;
+
 import org.hibernate.HibernateException;
-import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.engine.jdbc.spi.SqlExceptionHelper;
 import org.hibernate.engine.transaction.spi.IsolationDelegate;
 import org.hibernate.engine.transaction.spi.TransactionCoordinator;
-import org.hibernate.jdbc.WorkExecutorVisitable;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.jdbc.WorkExecutor;
+import org.hibernate.jdbc.WorkExecutorVisitable;
 import org.hibernate.service.jdbc.connections.spi.ConnectionProvider;
-
-import org.jboss.logging.Logger;
 
 /**
  * An isolation delegate for JTA environments.
@@ -83,7 +84,7 @@ public class JtaIsolationDelegate implements IsolationDelegate {
 		try {
 			// First we suspend any current JTA transaction
 			Transaction surroundingTransaction = transactionManager.suspend();
-            LOG.debugf("Surrounding JTA transaction suspended [%s]", surroundingTransaction);
+			LOG.debugf( "Surrounding JTA transaction suspended [%s]", surroundingTransaction );
 
 			boolean hadProblems = false;
 			try {
@@ -102,7 +103,7 @@ public class JtaIsolationDelegate implements IsolationDelegate {
 			finally {
 				try {
 					transactionManager.resume( surroundingTransaction );
-                    LOG.debugf( "Surrounding JTA transaction resumed [%s]", surroundingTransaction );
+					LOG.debugf( "Surrounding JTA transaction resumed [%s]", surroundingTransaction );
 				}
 				catch( Throwable t ) {
 					// if the actually work had an error use that, otherwise error based on t
@@ -134,8 +135,9 @@ public class JtaIsolationDelegate implements IsolationDelegate {
 					transactionManager.rollback();
 				}
 				catch ( Exception ignore ) {
-                    LOG.unableToRollbackIsolatedTransaction(e, ignore);
+					LOG.unableToRollbackIsolatedTransaction( e, ignore );
 				}
+				throw new HibernateException( "Could not apply work", e );
 			}
 		}
 		catch ( SystemException e ) {
@@ -171,7 +173,7 @@ public class JtaIsolationDelegate implements IsolationDelegate {
 					connectionProvider().closeConnection( connection );
 				}
 				catch ( Throwable ignore ) {
-                    LOG.unableToReleaseIsolatedConnection(ignore);
+					LOG.unableToReleaseIsolatedConnection( ignore );
 				}
 			}
 		}

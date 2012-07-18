@@ -29,16 +29,23 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Properties;
+
+import org.jboss.logging.Logger;
+
 import org.hibernate.HibernateException;
-import org.hibernate.internal.CoreMessageLogger;
+import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.cfg.Environment;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.internal.util.ReflectHelper;
 import org.hibernate.internal.util.config.ConfigurationHelper;
+import org.hibernate.service.UnknownUnwrapTypeException;
+import org.hibernate.service.classloading.spi.ClassLoaderService;
+import org.hibernate.service.classloading.spi.ClassLoadingException;
 import org.hibernate.service.jdbc.connections.spi.ConnectionProvider;
 import org.hibernate.service.spi.Configurable;
+import org.hibernate.service.spi.ServiceRegistryAwareService;
+import org.hibernate.service.spi.ServiceRegistryImplementor;
 import org.hibernate.service.spi.Stoppable;
-import org.hibernate.service.UnknownUnwrapTypeException;
-import org.jboss.logging.Logger;
 
 /**
  * A connection provider that uses the {@link java.sql.DriverManager} directly to open connections and provides
@@ -50,10 +57,9 @@ import org.jboss.logging.Logger;
  * @author Steve Ebersole
  */
 @SuppressWarnings( {"UnnecessaryUnboxing"})
-public class DriverManagerConnectionProviderImpl implements ConnectionProvider, Configurable, Stoppable {
-
-    private static final CoreMessageLogger LOG = Logger.getMessageLogger(CoreMessageLogger.class,
-                                                                       DriverManagerConnectionProviderImpl.class.getName());
+public class DriverManagerConnectionProviderImpl
+		implements ConnectionProvider, Configurable, Stoppable, ServiceRegistryAwareService {
+	private static final CoreMessageLogger LOG = Logger.getMessageLogger( CoreMessageLogger.class, DriverManagerConnectionProviderImpl.class.getName() );
 
 	private String url;
 	private Properties connectionProps;
@@ -65,6 +71,8 @@ public class DriverManagerConnectionProviderImpl implements ConnectionProvider, 
 	private int checkedOut = 0;
 
 	private boolean stopped;
+
+	private transient ServiceRegistryImplementor serviceRegistry;
 
 	@Override
 	public boolean isUnwrappableAs(Class unwrapType) {
@@ -87,15 +95,29 @@ public class DriverManagerConnectionProviderImpl implements ConnectionProvider, 
 	public void configure(Map configurationValues) {
         LOG.usingHibernateBuiltInConnectionPool();
 
-		String driverClassName = (String) configurationValues.get( Environment.DRIVER );
-        if (driverClassName == null) LOG.jdbcDriverNotSpecified(Environment.DRIVER);
+		String driverClassName = (String) configurationValues.get( AvailableSettings.DRIVER );
+		if ( driverClassName == null ) {
+			LOG.jdbcDriverNotSpecified( AvailableSettings.DRIVER );
+		}
+		else if ( serviceRegistry != null ) {
+			try {
+				serviceRegistry.getService( ClassLoaderService.class ).classForName( driverClassName );
+			}
+			catch ( ClassLoadingException e ) {
+				throw new ClassLoadingException(
+						"Specified JDBC Driver " + driverClassName + " class not found",
+						e
+				);
+			}
+		}
+		// guard dog, mostly for making test pass
 		else {
 			try {
 				// trying via forName() first to be as close to DriverManager's semantics
 				Class.forName( driverClassName );
 			}
 			catch ( ClassNotFoundException cnfe ) {
-				try {
+				try{
 					ReflectHelper.classForName( driverClassName );
 				}
 				catch ( ClassNotFoundException e ) {
@@ -104,39 +126,41 @@ public class DriverManagerConnectionProviderImpl implements ConnectionProvider, 
 			}
 		}
 
-		poolSize = ConfigurationHelper.getInt( Environment.POOL_SIZE, configurationValues, 20 ); // default pool size 20
+		poolSize = ConfigurationHelper.getInt( AvailableSettings.POOL_SIZE, configurationValues, 20 ); // default pool size 20
         LOG.hibernateConnectionPoolSize(poolSize);
 
-		autocommit = ConfigurationHelper.getBoolean( Environment.AUTOCOMMIT, configurationValues );
+		autocommit = ConfigurationHelper.getBoolean( AvailableSettings.AUTOCOMMIT, configurationValues );
         LOG.autoCommitMode( autocommit );
 
-		isolation = ConfigurationHelper.getInteger( Environment.ISOLATION, configurationValues );
+		isolation = ConfigurationHelper.getInteger( AvailableSettings.ISOLATION, configurationValues );
         if (isolation != null) LOG.jdbcIsolationLevel(Environment.isolationLevelToString(isolation.intValue()));
 
-		url = (String) configurationValues.get( Environment.URL );
+		url = (String) configurationValues.get( AvailableSettings.URL );
 		if ( url == null ) {
-            String msg = LOG.jdbcUrlNotSpecified(Environment.URL);
+            String msg = LOG.jdbcUrlNotSpecified(AvailableSettings.URL);
             LOG.error(msg);
 			throw new HibernateException( msg );
 		}
 
 		connectionProps = ConnectionProviderInitiator.getConnectionProperties( configurationValues );
 
-        LOG.usingDriver(driverClassName, url);
+		LOG.usingDriver( driverClassName, url );
 		// if debug level is enabled, then log the password, otherwise mask it
-        if (LOG.isDebugEnabled()) LOG.connectionProperties(connectionProps);
-        else LOG.connectionProperties(ConfigurationHelper.maskOut(connectionProps, "password"));
+		if ( LOG.isDebugEnabled() )
+			LOG.connectionProperties( connectionProps );
+		else
+			LOG.connectionProperties( ConfigurationHelper.maskOut( connectionProps, "password" ) );
 	}
 
 	public void stop() {
-        LOG.cleaningUpConnectionPool(url);
+		LOG.cleaningUpConnectionPool( url );
 
 		for ( Connection connection : pool ) {
 			try {
 				connection.close();
 			}
 			catch (SQLException sqle) {
-                LOG.unableToClosePooledConnection(sqle);
+				LOG.unableToClosePooledConnection( sqle );
 			}
 		}
 		pool.clear();
@@ -144,30 +168,28 @@ public class DriverManagerConnectionProviderImpl implements ConnectionProvider, 
 	}
 
 	public Connection getConnection() throws SQLException {
-        LOG.trace("Total checked-out connections: " + checkedOut);
+		LOG.tracev( "Total checked-out connections: {0}", checkedOut );
 
 		// essentially, if we have available connections in the pool, use one...
 		synchronized (pool) {
 			if ( !pool.isEmpty() ) {
 				int last = pool.size() - 1;
-                if (LOG.isTraceEnabled()) {
-                    LOG.trace("Using pooled JDBC connection, pool size: " + last);
-					checkedOut++;
-				}
-				Connection pooled = pool.remove(last);
+				LOG.tracev( "Using pooled JDBC connection, pool size: {0}", last );
+				Connection pooled = pool.remove( last );
 				if ( isolation != null ) {
 					pooled.setTransactionIsolation( isolation.intValue() );
 				}
 				if ( pooled.getAutoCommit() != autocommit ) {
 					pooled.setAutoCommit( autocommit );
 				}
+				checkedOut++;
 				return pooled;
 			}
 		}
 
 		// otherwise we open a new connection...
 
-        LOG.debugf("Opening new JDBC connection");
+		LOG.debug( "Opening new JDBC connection" );
 		Connection conn = DriverManager.getConnection( url, connectionProps );
 		if ( isolation != null ) {
 			conn.setTransactionIsolation( isolation.intValue() );
@@ -176,10 +198,11 @@ public class DriverManagerConnectionProviderImpl implements ConnectionProvider, 
 			conn.setAutoCommit(autocommit);
 		}
 
-        LOG.debugf("Created connection to: %s, Isolation Level: %s", url, conn.getTransactionIsolation());
+		if ( LOG.isDebugEnabled() ) {
+			LOG.debugf( "Created connection to: %s, Isolation Level: %s", url, conn.getTransactionIsolation() );
+		}
 
 		checkedOut++;
-
 		return conn;
 	}
 
@@ -190,18 +213,18 @@ public class DriverManagerConnectionProviderImpl implements ConnectionProvider, 
 		synchronized (pool) {
 			int currentSize = pool.size();
 			if ( currentSize < poolSize ) {
-                LOG.trace("Returning connection to pool, pool size: " + (currentSize + 1));
+				LOG.tracev( "Returning connection to pool, pool size: {0}", ( currentSize + 1 ) );
 				pool.add(conn);
 				return;
 			}
 		}
 
-        LOG.debugf("Closing JDBC connection");
+		LOG.debug( "Closing JDBC connection" );
 		conn.close();
 	}
 
 	@Override
-    protected void finalize() throws Throwable {
+	protected void finalize() throws Throwable {
 		if ( !stopped ) {
 			stop();
 		}
@@ -210,5 +233,10 @@ public class DriverManagerConnectionProviderImpl implements ConnectionProvider, 
 
 	public boolean supportsAggressiveRelease() {
 		return false;
+	}
+
+	@Override
+	public void injectServices(ServiceRegistryImplementor serviceRegistry) {
+		this.serviceRegistry = serviceRegistry;
 	}
 }

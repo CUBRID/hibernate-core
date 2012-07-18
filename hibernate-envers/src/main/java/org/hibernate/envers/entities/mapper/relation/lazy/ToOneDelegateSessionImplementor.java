@@ -23,6 +23,7 @@
  */
 package org.hibernate.envers.entities.mapper.relation.lazy;
 import java.io.Serializable;
+
 import org.hibernate.HibernateException;
 import org.hibernate.envers.configuration.AuditConfiguration;
 import org.hibernate.envers.entities.EntitiesConfigurations;
@@ -31,7 +32,7 @@ import org.hibernate.envers.reader.AuditReaderImplementor;
 /**
  * @author Adam Warski (adam at warski dot org)
  * @author Tomasz Bech
- * @author Hern�n Chanfreau
+ * @author HernпїЅn Chanfreau
  */
 public class ToOneDelegateSessionImplementor extends AbstractDelegateSessionImplementor {
 	private static final long serialVersionUID = 4770438372940785488L;

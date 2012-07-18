@@ -23,23 +23,24 @@
  */
 package org.hibernate.envers.test.integration.manytomany;
 
+import java.util.Arrays;
+import javax.persistence.EntityManager;
+
+import org.junit.Test;
+
 import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.test.AbstractEntityTest;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
 import org.hibernate.envers.test.Priority;
 import org.hibernate.envers.test.entities.IntNoAutoIdTestEntity;
 import org.hibernate.envers.test.entities.manytomany.WhereJoinTableEntity;
 import org.hibernate.envers.test.tools.TestTools;
-import org.junit.Test;
 
-import javax.persistence.EntityManager;
-import java.util.Arrays;
-
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author Adam Warski (adam at warski dot org)
  */
-public class BasicWhereJoinTable extends AbstractEntityTest {
+public class BasicWhereJoinTable extends BaseEnversJPAFunctionalTestCase {
     private Integer ite1_1_id;
     private Integer ite1_2_id;
     private Integer ite2_1_id;

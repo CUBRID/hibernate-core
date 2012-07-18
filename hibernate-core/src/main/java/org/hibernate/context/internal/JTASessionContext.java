@@ -23,21 +23,22 @@
  */
 package org.hibernate.context.internal;
 
+import java.util.Hashtable;
+import java.util.Map;
 import javax.transaction.Synchronization;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
-import java.util.Hashtable;
-import java.util.Map;
 
 import org.jboss.logging.Logger;
 
 import org.hibernate.ConnectionReleaseMode;
 import org.hibernate.HibernateException;
+import org.hibernate.Session;
+import org.hibernate.context.spi.AbstractCurrentSessionContext;
 import org.hibernate.context.spi.CurrentSessionContext;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
-import org.hibernate.internal.CoreMessageLogger;
-import org.hibernate.Session;
 import org.hibernate.engine.transaction.internal.jta.JtaStatusHelper;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.service.jta.platform.spi.JtaPlatform;
 
 /**
@@ -63,19 +64,18 @@ import org.hibernate.service.jta.platform.spi.JtaPlatform;
  *
  * @author Steve Ebersole
  */
-public class JTASessionContext implements CurrentSessionContext {
+public class JTASessionContext extends AbstractCurrentSessionContext {
     private static final CoreMessageLogger LOG = Logger.getMessageLogger(CoreMessageLogger.class, JTASessionContext.class.getName());
 
-	protected final SessionFactoryImplementor factory;
 	private transient Map currentSessionMap = new Hashtable();
 
 	public JTASessionContext(SessionFactoryImplementor factory) {
-		this.factory = factory;
+		super( factory );
 	}
 
 	@Override
 	public Session currentSession() throws HibernateException {
-		final JtaPlatform jtaPlatform = factory.getServiceRegistry().getService( JtaPlatform.class );
+		final JtaPlatform jtaPlatform = factory().getServiceRegistry().getService( JtaPlatform.class );
 		final TransactionManager transactionManager = jtaPlatform.retrieveTransactionManager();
 		if ( transactionManager == null ) {
 			throw new HibernateException( "No TransactionManagerLookup specified" );
@@ -116,12 +116,15 @@ public class JTASessionContext implements CurrentSessionContext {
 					currentSession.close();
 				}
 				catch ( Throwable ignore ) {
-                    LOG.debug("Unable to release generated current-session on failed synch registration", ignore);
+					LOG.debug( "Unable to release generated current-session on failed synch registration", ignore );
 				}
 				throw new HibernateException( "Unable to register cleanup Synchronization with TransactionManager" );
 			}
 
 			currentSessionMap.put( txnIdentifier, currentSession );
+		}
+		else {
+			validateExistingSession( currentSession );
 		}
 
 		return currentSession;
@@ -147,7 +150,7 @@ public class JTASessionContext implements CurrentSessionContext {
 	 * @return the built or (re)obtained session.
 	 */
 	protected Session buildOrObtainSession() {
-		return factory.withOptions()
+		return baseSessionBuilder()
 				.autoClose( isAutoCloseEnabled() )
 				.connectionReleaseMode( getConnectionReleaseMode() )
 				.flushBeforeCompletion( isAutoFlushEnabled() )

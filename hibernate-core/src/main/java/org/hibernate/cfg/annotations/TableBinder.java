@@ -27,9 +27,11 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import javax.persistence.UniqueConstraint;
+
+import org.jboss.logging.Logger;
+
 import org.hibernate.AnnotationException;
 import org.hibernate.AssertionFailure;
-import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.annotations.Index;
 import org.hibernate.cfg.BinderHelper;
 import org.hibernate.cfg.Ejb3JoinColumn;
@@ -39,6 +41,7 @@ import org.hibernate.cfg.NamingStrategy;
 import org.hibernate.cfg.ObjectNameNormalizer;
 import org.hibernate.cfg.ObjectNameSource;
 import org.hibernate.cfg.UniqueConstraintHolder;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.internal.util.StringHelper;
 import org.hibernate.internal.util.collections.CollectionHelper;
 import org.hibernate.mapping.Collection;
@@ -51,8 +54,6 @@ import org.hibernate.mapping.SimpleValue;
 import org.hibernate.mapping.Table;
 import org.hibernate.mapping.ToOne;
 import org.hibernate.mapping.Value;
-
-import org.jboss.logging.Logger;
 
 /**
  * Table related operations
@@ -258,18 +259,6 @@ public class TableBinder {
 	}
 
 	/**
-	 *
-	 * @param schema
-	 * @param catalog
-	 * @param realTableName
-	 * @param logicalName
-	 * @param isAbstract
-	 * @param uniqueConstraints
-	 * @param constraints
-	 * @param denormalizedSuperTable
-	 * @param mappings
-	 * @return
-	 *
 	 * @deprecated Use {@link #buildAndFillTable} instead.
 	 */
 	@Deprecated
@@ -340,7 +329,7 @@ public class TableBinder {
 			 * Get the columns of the mapped-by property
 			 * copy them and link the copy to the actual value
 			 */
-            LOG.debugf("Retrieving property %s.%s", associatedClass.getEntityName(), mappedByProperty);
+			LOG.debugf( "Retrieving property %s.%s", associatedClass.getEntityName(), mappedByProperty );
 
 			final Property property = associatedClass.getRecursiveProperty( columns[0].getMappedBy() );
 			Iterator mappedByColumns;
@@ -447,7 +436,9 @@ public class TableBinder {
 					Iterator idColItr = referencedEntity.getKey().getColumnIterator();
 					org.hibernate.mapping.Column col;
 					Table table = referencedEntity.getTable(); //works cause the pk has to be on the primary table
-                    if (!idColItr.hasNext()) LOG.debugf("No column in the identifier!");
+					if ( !idColItr.hasNext() ) {
+						LOG.debug( "No column in the identifier!" );
+					}
 					while ( idColItr.hasNext() ) {
 						boolean match = false;
 						//for each PK column, find the associated FK column.
@@ -527,7 +518,7 @@ public class TableBinder {
 	 * @deprecated Use {@link #buildUniqueConstraintHolders} instead
 	 */
 	@Deprecated
-    @SuppressWarnings({ "JavaDoc" })
+	@SuppressWarnings({ "JavaDoc" })
 	public static List<String[]> buildUniqueConstraints(UniqueConstraint[] constraintsArray) {
 		List<String[]> result = new ArrayList<String[]>();
 		if ( constraintsArray.length != 0 ) {

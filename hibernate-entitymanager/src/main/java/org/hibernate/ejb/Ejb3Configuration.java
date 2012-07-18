@@ -23,19 +23,6 @@
  */
 package org.hibernate.ejb;
 
-import javax.naming.BinaryRefAddr;
-import javax.naming.NamingException;
-import javax.naming.Reference;
-import javax.naming.Referenceable;
-import javax.persistence.Embeddable;
-import javax.persistence.Entity;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.EntityNotFoundException;
-import javax.persistence.MappedSuperclass;
-import javax.persistence.PersistenceException;
-import javax.persistence.spi.PersistenceUnitInfo;
-import javax.persistence.spi.PersistenceUnitTransactionType;
-import javax.sql.DataSource;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -58,6 +45,19 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
+import javax.naming.BinaryRefAddr;
+import javax.naming.NamingException;
+import javax.naming.Reference;
+import javax.naming.Referenceable;
+import javax.persistence.Embeddable;
+import javax.persistence.Entity;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.EntityNotFoundException;
+import javax.persistence.MappedSuperclass;
+import javax.persistence.PersistenceException;
+import javax.persistence.spi.PersistenceUnitInfo;
+import javax.persistence.spi.PersistenceUnitTransactionType;
+import javax.sql.DataSource;
 
 import org.dom4j.Element;
 import org.jboss.logging.Logger;
@@ -68,12 +68,14 @@ import org.hibernate.HibernateException;
 import org.hibernate.Interceptor;
 import org.hibernate.MappingException;
 import org.hibernate.MappingNotFoundException;
+import org.hibernate.SessionFactory;
 import org.hibernate.SessionFactoryObserver;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
 import org.hibernate.cfg.NamingStrategy;
 import org.hibernate.cfg.annotations.reflection.XMLContext;
 import org.hibernate.cfg.beanvalidation.BeanValidationIntegrator;
+import org.hibernate.ejb.cfg.spi.IdentifierGeneratorStrategyProvider;
 import org.hibernate.ejb.connection.InjectedDataSourceConnectionProvider;
 import org.hibernate.ejb.event.JpaIntegrator;
 import org.hibernate.ejb.instrument.InterceptFieldClassFileTransformer;
@@ -90,7 +92,8 @@ import org.hibernate.ejb.util.NamingHelper;
 import org.hibernate.engine.spi.FilterDefinition;
 import org.hibernate.engine.transaction.internal.jdbc.JdbcTransactionFactory;
 import org.hibernate.engine.transaction.internal.jta.CMTTransactionFactory;
-import org.hibernate.integrator.spi.IntegratorService;
+import org.hibernate.id.factory.spi.MutableIdentifierGeneratorFactory;
+import org.hibernate.internal.SessionFactoryObserverChain;
 import org.hibernate.internal.util.ReflectHelper;
 import org.hibernate.internal.util.StringHelper;
 import org.hibernate.internal.util.collections.CollectionHelper;
@@ -101,8 +104,10 @@ import org.hibernate.mapping.AuxiliaryDatabaseObject;
 import org.hibernate.mapping.PersistentClass;
 import org.hibernate.proxy.EntityNotFoundDelegate;
 import org.hibernate.secure.internal.JACCConfiguration;
+import org.hibernate.service.BootstrapServiceRegistryBuilder;
 import org.hibernate.service.ServiceRegistry;
 import org.hibernate.service.ServiceRegistryBuilder;
+import org.hibernate.service.internal.StandardServiceRegistryImpl;
 import org.hibernate.service.jdbc.connections.internal.DatasourceConnectionProviderImpl;
 
 /**
@@ -122,10 +127,16 @@ import org.hibernate.service.jdbc.connections.internal.DatasourceConnectionProvi
  *
  * @author Emmanuel Bernard
  *
- * @deprecated See <a href="http://opensource.atlassian.com/projects/hibernate/browse/HHH-6181">HHH-6181</a> and
+ * @deprecated Direct usage of this class has never been supported.  Instead, the application should obtain reference
+ * to the {@link EntityManagerFactory} as outlined in the JPA specification, section <i>7.3 Obtaining an Entity
+ * Manager Factory</i> based on runtime environment.  Additionally this class will be removed in Hibernate release
+ * 5.0 for the same reasoning outlined on {@link Configuration} due to move towards new
+ * {@link org.hibernate.SessionFactory} building methodology.  See
+ * <a href="http://opensource.atlassian.com/projects/hibernate/browse/HHH-6181">HHH-6181</a> and
  * <a href="http://opensource.atlassian.com/projects/hibernate/browse/HHH-6159">HHH-6159</a> for details
  */
 @Deprecated
+@SuppressWarnings( {"JavaDoc"})
 public class Ejb3Configuration implements Serializable, Referenceable {
 
     private static final EntityManagerMessageLogger LOG = Logger.getMessageLogger(
@@ -652,7 +663,7 @@ public class Ejb3Configuration implements Serializable, Referenceable {
 			}
 
 			if ( ! overridenDatasource && ( info.getJtaDataSource() != null || info.getNonJtaDataSource() != null ) ) {
-				isJTA = info.getJtaDataSource() != null ? Boolean.TRUE : Boolean.FALSE;
+				isJTA = info.getJtaDataSource() != null;
 				this.setDataSource(
 						isJTA ? info.getJtaDataSource() : info.getNonJtaDataSource()
 				);
@@ -870,33 +881,34 @@ public class Ejb3Configuration implements Serializable, Referenceable {
 	 * @deprecated
 	 */
 	@Deprecated
-    public EntityManagerFactory createEntityManagerFactory() {
+	public EntityManagerFactory createEntityManagerFactory() {
 		configure( cfg.getProperties(), new HashMap() );
 		return buildEntityManagerFactory();
 	}
 
 	public EntityManagerFactory buildEntityManagerFactory() {
-		return buildEntityManagerFactory( new ServiceRegistryBuilder( cfg.getProperties() ).buildServiceRegistry() );
+		return buildEntityManagerFactory( new BootstrapServiceRegistryBuilder() );
 	}
 
-	public EntityManagerFactory buildEntityManagerFactory(ServiceRegistry serviceRegistry) {
+	public EntityManagerFactory buildEntityManagerFactory(BootstrapServiceRegistryBuilder builder) {
 		Thread thread = null;
 		ClassLoader contextClassLoader = null;
-		if (overridenClassLoader != null) {
+
+		if ( overridenClassLoader != null ) {
 			thread = Thread.currentThread();
 			contextClassLoader = thread.getContextClassLoader();
 			thread.setContextClassLoader( overridenClassLoader );
 		}
+
 		try {
-			configure( (Properties)null, null );
-			NamingHelper.bind(this);
-			serviceRegistry.getService( IntegratorService.class ).addIntegrator( new JpaIntegrator() );
-			return new EntityManagerFactoryImpl(
+			final ServiceRegistry serviceRegistry = buildLifecycleControledServiceRegistry( builder );
+			return  new EntityManagerFactoryImpl(
 					transactionType,
 					discardOnClose,
 					getSessionInterceptorClass( cfg.getProperties() ),
 					cfg,
-					serviceRegistry
+					serviceRegistry,
+					persistenceUnitName
 			);
 		}
 		catch (HibernateException e) {
@@ -907,6 +919,36 @@ public class Ejb3Configuration implements Serializable, Referenceable {
 				thread.setContextClassLoader( contextClassLoader );
 			}
 		}
+	}
+
+	private ServiceRegistry buildLifecycleControledServiceRegistry(BootstrapServiceRegistryBuilder builder) {
+		final ServiceRegistryBuilder serviceRegistryBuilder = new ServiceRegistryBuilder(
+				builder.with( new JpaIntegrator() ).build()
+		);
+		serviceRegistryBuilder.applySettings( cfg.getProperties() );
+		configure( (Properties ) null, null );
+		NamingHelper.bind( this );
+		final ServiceRegistry serviceRegistry = serviceRegistryBuilder.buildServiceRegistry();
+		SessionFactoryObserver serviceRegistryCloser = new SessionFactoryObserver() {
+			@Override
+			public void sessionFactoryCreated(SessionFactory factory) {
+			}
+
+			@Override
+			public void sessionFactoryClosed(SessionFactory factory) {
+				( ( StandardServiceRegistryImpl ) serviceRegistry ).destroy();
+			}
+		};
+		if ( cfg.getSessionFactoryObserver() != null ) {
+			SessionFactoryObserverChain aggregator = new SessionFactoryObserverChain();
+			aggregator.addObserver( cfg.getSessionFactoryObserver() );
+			aggregator.addObserver( serviceRegistryCloser );
+			cfg.setSessionFactoryObserver( aggregator );
+		}
+		else {
+			cfg.setSessionFactoryObserver( serviceRegistryCloser );
+		}
+		return serviceRegistry;
 	}
 
 	private Class getSessionInterceptorClass(Properties properties) {
@@ -1064,6 +1106,21 @@ public class Ejb3Configuration implements Serializable, Referenceable {
 		);
 		if ( observer != null ) {
 			cfg.setSessionFactoryObserver( observer );
+		}
+
+		final IdentifierGeneratorStrategyProvider strategyProvider = instantiateCustomClassFromConfiguration(
+				preparedProperties,
+				null,
+				null,
+				AvailableSettings.IDENTIFIER_GENERATOR_STRATEGY_PROVIDER,
+				"Identifier generator strategy provider",
+				IdentifierGeneratorStrategyProvider.class
+		);
+		if ( strategyProvider != null ) {
+			final MutableIdentifierGeneratorFactory identifierGeneratorFactory = cfg.getIdentifierGeneratorFactory();
+			for ( Map.Entry<String,Class<?>> entry : strategyProvider.getStrategies().entrySet() ) {
+				identifierGeneratorFactory.register( entry.getKey(), entry.getValue() );
+			}
 		}
 
 		if ( jaccKeys.size() > 0 ) {

@@ -30,10 +30,10 @@ import java.lang.reflect.Proxy;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import org.hibernate.internal.CoreMessageLogger;
-import org.hibernate.engine.jdbc.spi.SqlExceptionHelper;
-
 import org.jboss.logging.Logger;
+
+import org.hibernate.engine.jdbc.spi.SqlExceptionHelper;
+import org.hibernate.internal.CoreMessageLogger;
 
 /**
  * A proxy for a ResultSet delegate, responsible for locally caching the columnName-to-columnIndex resolution that
@@ -100,7 +100,7 @@ public class ResultSetWrapperProxy implements InvocationHandler {
 				);
 			}
 			catch ( SQLException ex ) {
-				StringBuffer buf = new StringBuffer()
+				StringBuilder buf = new StringBuilder()
 						.append( "Exception getting column index for column: [" )
 						.append( args[0] )
 						.append( "].\nReverting to using: [" )
@@ -111,7 +111,7 @@ public class ResultSetWrapperProxy implements InvocationHandler {
 				sqlExceptionHelper.logExceptions( ex, buf.toString() );
 			}
 			catch ( NoSuchMethodException ex ) {
-                LOG.unableToSwitchToMethodUsingColumnIndex(method);
+				LOG.unableToSwitchToMethodUsingColumnIndex( method );
 			}
 		}
 		return invokeMethod( method, args );

@@ -23,8 +23,18 @@
  */
 package org.hibernate.ejb;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import javax.persistence.CacheRetrieveMode;
 import javax.persistence.CacheStoreMode;
+import javax.persistence.EntityExistsException;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityNotFoundException;
 import javax.persistence.EntityTransaction;
@@ -49,17 +59,9 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Selection;
 import javax.persistence.metamodel.Metamodel;
 import javax.persistence.spi.PersistenceUnitTransactionType;
+import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.TransactionManager;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 import org.jboss.logging.Logger;
 
@@ -81,6 +83,9 @@ import org.hibernate.TransientObjectException;
 import org.hibernate.TypeMismatchException;
 import org.hibernate.UnresolvableObjectException;
 import org.hibernate.cfg.Environment;
+import org.hibernate.dialect.lock.LockingStrategyException;
+import org.hibernate.dialect.lock.OptimisticEntityLockException;
+import org.hibernate.dialect.lock.PessimisticEntityLockException;
 import org.hibernate.ejb.criteria.CriteriaQueryCompiler;
 import org.hibernate.ejb.criteria.ValueHandlerFactory;
 import org.hibernate.ejb.criteria.expression.CompoundSelectionImpl;
@@ -110,6 +115,7 @@ import org.hibernate.service.jta.platform.spi.JtaPlatform;
 import org.hibernate.transform.BasicTransformerAdapter;
 import org.hibernate.type.Type;
 
+
 /**
  * @author <a href="mailto:gavin@hibernate.org">Gavin King</a>
  * @author Emmanuel Bernard
@@ -118,6 +124,7 @@ import org.hibernate.type.Type;
  */
 @SuppressWarnings("unchecked")
 public abstract class AbstractEntityManagerImpl implements HibernateEntityManagerImplementor, Serializable {
+	private static final long serialVersionUID = 78818181L;
 
     private static final EntityManagerMessageLogger LOG = Logger.getMessageLogger(EntityManagerMessageLogger.class,
                                                                            AbstractEntityManagerImpl.class.getName());
@@ -151,11 +158,12 @@ public abstract class AbstractEntityManagerImpl implements HibernateEntityManage
 
 		this.lockOptions = new LockOptions();
 		this.properties = new HashMap<String, Object>();
-		if ( properties != null ) {
-			for ( String key : entityManagerSpecificProperties ) {
-				if ( properties.containsKey( key ) ) {
-					this.properties.put( key, properties.get( key ) );
-				}
+		for ( String key : entityManagerSpecificProperties ) {
+			if ( entityManagerFactory.getProperties().containsKey( key ) ) {
+				this.properties.put( key, entityManagerFactory.getProperties().get( key ) );
+			}
+			if ( properties != null && properties.containsKey( key ) ) {
+				this.properties.put( key, properties.get( key ) );
 			}
 		}
 	}
@@ -192,6 +200,10 @@ public abstract class AbstractEntityManagerImpl implements HibernateEntityManage
 		Object queryTimeout;
 		if ( (queryTimeout = getProperties().get(QueryHints.SPEC_HINT_TIMEOUT)) != null ) {
 			query.setHint ( QueryHints.SPEC_HINT_TIMEOUT, queryTimeout );
+		}
+		Object lockTimeout;
+		if( (lockTimeout = getProperties().get( AvailableSettings.LOCK_TIMEOUT ))!=null){
+			query.setHint( AvailableSettings.LOCK_TIMEOUT, lockTimeout );
 		}
 		return query;
 	}
@@ -288,46 +300,7 @@ public abstract class AbstractEntityManagerImpl implements HibernateEntityManage
 			// do the translation
 			org.hibernate.Query hqlQuery = getSession().createQuery( jpaqlString );
 
-			// do some validation checking
-			if ( Object[].class.equals( resultClass ) ) {
-				// no validation needed
-			}
-			else if ( Tuple.class.equals( resultClass ) ) {
-				TupleBuilderTransformer tupleTransformer = new TupleBuilderTransformer( hqlQuery );
-				hqlQuery.setResultTransformer( tupleTransformer  );
-			}
-			else {
-				final HQLQueryPlan queryPlan = unwrap( SessionImplementor.class )
-						.getFactory()
-						.getQueryPlanCache()
-						.getHQLQueryPlan( jpaqlString, false, null );
-				final Class dynamicInstantiationClass = queryPlan.getDynamicInstantiationResultType();
-				if ( dynamicInstantiationClass != null ) {
-					if ( ! resultClass.isAssignableFrom( dynamicInstantiationClass ) ) {
-						throw new IllegalArgumentException(
-								"Mismatch in requested result type [" + resultClass.getName() +
-										"] and actual result type [" + dynamicInstantiationClass.getName() + "]"
-						);
-					}
-				}
-				else if ( hqlQuery.getReturnTypes().length == 1 ) {
-					// if we have only a single return expression, its java type should match with the requested type
-					if ( !resultClass.isAssignableFrom( hqlQuery.getReturnTypes()[0].getReturnedClass() ) ) {
-						throw new IllegalArgumentException(
-								"Type specified for TypedQuery [" +
-										resultClass.getName() +
-										"] is incompatible with query return type [" +
-										hqlQuery.getReturnTypes()[0].getReturnedClass() + "]"
-						);
-					}
-				}
-				else {
-					throw new IllegalArgumentException(
-							"Cannot create TypedQuery for query with more than one return using requested result type [" +
-									resultClass.getName() + "]"
-					);
-				}
-			}
+			resultClassChecking( resultClass, hqlQuery );
 
 			// finally, build/return the query instance
 			return new QueryImpl<T>( hqlQuery, this );
@@ -639,7 +612,7 @@ public abstract class AbstractEntityManagerImpl implements HibernateEntityManage
 			 */
 			org.hibernate.Query namedQuery = getSession().getNamedQuery( name );
 			//TODO clean this up to avoid downcasting
-			final SessionFactoryImplementor factoryImplementor = ( SessionFactoryImplementor ) entityManagerFactory.getSessionFactory();
+			final SessionFactoryImplementor factoryImplementor = entityManagerFactory.getSessionFactory();
 			final NamedSQLQueryDefinition queryDefinition = factoryImplementor.getNamedSQLQuery( name );
 			try {
 				if ( queryDefinition != null ) {
@@ -679,12 +652,8 @@ public abstract class AbstractEntityManagerImpl implements HibernateEntityManage
 					}
 				}
 				else {
-					if ( namedQuery.getReturnTypes().length != 1 ) {
-						throw new IllegalArgumentException( "Cannot create TypedQuery for query with more than one return" );
-					}
-					if ( !resultClass.isAssignableFrom( namedQuery.getReturnTypes()[0].getReturnedClass() ) ) {
-						throw buildIncompatibleException( resultClass, namedQuery.getReturnTypes()[0].getReturnedClass() );
-					}
+					resultClassChecking( resultClass, namedQuery );
+
 				}
 				return new QueryImpl<T>( namedQuery, this );
 			}
@@ -694,6 +663,56 @@ public abstract class AbstractEntityManagerImpl implements HibernateEntityManage
 		}
 		catch ( MappingException e ) {
 			throw new IllegalArgumentException( "Named query not found: " + name );
+		}
+	}
+
+	private <T> void resultClassChecking(Class<T> resultClass, org.hibernate.Query query) {
+		// make sure the query is a select -> HHH-7192
+		final SessionImplementor session = unwrap( SessionImplementor.class );
+		final HQLQueryPlan queryPlan = session.getFactory().getQueryPlanCache().getHQLQueryPlan(
+				query.getQueryString(),
+				false,
+				session.getLoadQueryInfluencers().getEnabledFilters()
+		);
+		if ( queryPlan.getTranslators()[0].isManipulationStatement() ) {
+			throw new IllegalArgumentException( "Update/delete queries cannot be typed" );
+		}
+
+		// do some return type validation checking
+		if ( Object[].class.equals( resultClass ) ) {
+			// no validation needed
+		}
+		else if ( Tuple.class.equals( resultClass ) ) {
+			TupleBuilderTransformer tupleTransformer = new TupleBuilderTransformer( query );
+			query.setResultTransformer( tupleTransformer );
+		}
+		else {
+			final Class dynamicInstantiationClass = queryPlan.getDynamicInstantiationResultType();
+			if ( dynamicInstantiationClass != null ) {
+				if ( ! resultClass.isAssignableFrom( dynamicInstantiationClass ) ) {
+					throw new IllegalArgumentException(
+							"Mismatch in requested result type [" + resultClass.getName() +
+									"] and actual result type [" + dynamicInstantiationClass.getName() + "]"
+					);
+				}
+			}
+			else if ( query.getReturnTypes().length == 1 ) {
+				// if we have only a single return expression, its java type should match with the requested type
+				if ( !resultClass.isAssignableFrom( query.getReturnTypes()[0].getReturnedClass() ) ) {
+					throw new IllegalArgumentException(
+							"Type specified for TypedQuery [" +
+									resultClass.getName() +
+									"] is incompatible with query return type [" +
+									query.getReturnTypes()[0].getReturnedClass() + "]"
+					);
+				}
+			}
+			else {
+				throw new IllegalArgumentException(
+						"Cannot create TypedQuery for query with more than one return using requested result type [" +
+								resultClass.getName() + "]"
+				);
+			}
 		}
 	}
 
@@ -778,9 +797,10 @@ public abstract class AbstractEntityManagerImpl implements HibernateEntityManage
 		try {
 			getSession().setCacheMode( cacheMode );
 			if ( lockModeType != null ) {
+				lockOptions = getLockRequest( lockModeType, properties );
 				return ( A ) getSession().get(
-						entityClass, ( Serializable ) primaryKey,
-						getLockRequest( lockModeType, properties )
+						entityClass, ( Serializable ) primaryKey, 
+						lockOptions
 				);
 			}
 			else {
@@ -905,7 +925,8 @@ public abstract class AbstractEntityManagerImpl implements HibernateEntityManage
 				throw new IllegalArgumentException( "Entity not managed" );
 			}
 			if ( lockModeType != null ) {
-				getSession().refresh( entity, ( lockOptions = getLockRequest( lockModeType, properties ) ) );
+				lockOptions = getLockRequest( lockModeType, properties );
+				getSession().refresh( entity, lockOptions );
 			}
 			else {
 				getSession().refresh( entity );
@@ -1082,8 +1103,8 @@ public abstract class AbstractEntityManagerImpl implements HibernateEntityManage
 			if ( !contains( entity ) ) {
 				throw new IllegalArgumentException( "entity not in the persistence context" );
 			}
-			getSession().buildLockRequest( ( lockOptions = getLockRequest( lockModeType, properties ) ) )
-					.lock( entity );
+			lockOptions = getLockRequest( lockModeType, properties );
+			getSession().buildLockRequest( lockOptions ).lock( entity );
 		}
 		catch ( HibernateException he ) {
 			throw convert( he, lockOptions );
@@ -1134,7 +1155,9 @@ public abstract class AbstractEntityManagerImpl implements HibernateEntityManage
 					);
 				}
 				try {
-					transactionManager.setRollbackOnly();
+                    if ( transactionManager.getStatus() != Status.STATUS_NO_TRANSACTION ) {
+                        transactionManager.setRollbackOnly();
+                    }
 				}
 				catch ( SystemException e ) {
 					throw new PersistenceException( "Unable to set the JTA transaction as RollbackOnly", e );
@@ -1297,7 +1320,12 @@ public abstract class AbstractEntityManagerImpl implements HibernateEntityManage
 			handlePersistenceException( converted );
 			return converted;
 		}
-		else if ( e instanceof org.hibernate.OptimisticLockException ) {
+		else if ( e instanceof LockingStrategyException ) {
+			PersistenceException converted = wrapLockException( e, lockOptions );
+			handlePersistenceException( converted );
+			return converted;
+		}
+		else if ( e instanceof org.hibernate.exception.LockTimeoutException ) {
 			PersistenceException converted = wrapLockException( e, lockOptions );
 			handlePersistenceException( converted );
 			return converted;
@@ -1317,6 +1345,11 @@ public abstract class AbstractEntityManagerImpl implements HibernateEntityManage
 			handlePersistenceException( converted );
 			return converted;
 		}
+        else if ( e instanceof org.hibernate.NonUniqueObjectException ) {
+            EntityExistsException converted = new EntityExistsException( e.getMessage() );
+            handlePersistenceException( converted );
+            return converted;
+        }
 		else if ( e instanceof org.hibernate.NonUniqueResultException ) {
 			NonUniqueResultException converted = new NonUniqueResultException( e.getMessage() );
 			handlePersistenceException( converted );
@@ -1388,19 +1421,32 @@ public abstract class AbstractEntityManagerImpl implements HibernateEntityManage
 	}
 
 	public PersistenceException wrapLockException(HibernateException e, LockOptions lockOptions) {
-		PersistenceException pe;
-		if ( e instanceof org.hibernate.OptimisticLockException ) {
-			org.hibernate.OptimisticLockException ole = ( org.hibernate.OptimisticLockException ) e;
-			pe = new OptimisticLockException( ole.getMessage(), ole, ole.getEntity() );
+		final PersistenceException pe;
+		if ( e instanceof OptimisticEntityLockException ) {
+			final OptimisticEntityLockException lockException = (OptimisticEntityLockException) e;
+			pe = new OptimisticLockException( lockException.getMessage(), lockException, lockException.getEntity() );
 		}
-		else if ( e instanceof org.hibernate.PessimisticLockException ) {
-			org.hibernate.PessimisticLockException ple = ( org.hibernate.PessimisticLockException ) e;
+		else if ( e instanceof org.hibernate.exception.LockTimeoutException ) {
+			pe = new LockTimeoutException( e.getMessage(), e, null );
+		}
+		else if ( e instanceof PessimisticEntityLockException ) {
+			PessimisticEntityLockException lockException = (PessimisticEntityLockException) e;
 			if ( lockOptions != null && lockOptions.getTimeOut() > -1 ) {
 				// assume lock timeout occurred if a timeout or NO WAIT was specified
-				pe = new LockTimeoutException( ple.getMessage(), ple, ple.getEntity() );
+				pe = new LockTimeoutException( lockException.getMessage(), lockException, lockException.getEntity() );
 			}
 			else {
-				pe = new PessimisticLockException( ple.getMessage(), ple, ple.getEntity() );
+				pe = new PessimisticLockException( lockException.getMessage(), lockException, lockException.getEntity() );
+			}
+		}
+		else if ( e instanceof org.hibernate.PessimisticLockException ) {
+			org.hibernate.PessimisticLockException jdbcLockException = ( org.hibernate.PessimisticLockException ) e;
+			if ( lockOptions != null && lockOptions.getTimeOut() > -1 ) {
+				// assume lock timeout occurred if a timeout or NO WAIT was specified
+				pe = new LockTimeoutException( jdbcLockException.getMessage(), jdbcLockException, null );
+			}
+			else {
+				pe = new PessimisticLockException( jdbcLockException.getMessage(), jdbcLockException, null );
 			}
 		}
 		else {

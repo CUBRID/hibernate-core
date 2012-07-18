@@ -1,10 +1,9 @@
 import org.apache.tools.ant.filters.ReplaceTokens
 
 apply plugin: 'java'
+apply plugin: org.hibernate.build.gradle.testing.matrix.MatrixTestingPlugin
 
 dependencies {
-    shrinkwrapVersion = '1.0.0-alpha-6'
-
     compile( project(':hibernate-core') )
     compile( libraries.dom4j )
     compile( libraries.commons_annotations )
@@ -19,19 +18,17 @@ dependencies {
     testRuntime( libraries.validator )
 }
 
-aptDumpDir = file( buildDirName + "/tmp/apt" )
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+// JPA model-gen set up
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+aptDumpDir = file( "${buildDir}/tmp/apt" )
 
 sourceSets.test {
     originalJavaSrcDirs = java.srcDirs
     generatedJpaMetamodelSrcDir = file( "${buildDir}/generated-src/jpamodelgen/${name}" )
     java.srcDir generatedJpaMetamodelSrcDir
 }
-
-ideaModule {
-    excludeDirs += file("$buildDir/bundles")
-}
-
-task generateJpaMetamodelClasses(type: Compile) {
+task generateTestJpaMetamodelClasses(type: Compile) {
     classpath = compileTestJava.classpath + configurations.hibernateJpaModelGenTool
     source = sourceSets.test.originalJavaSrcDirs
     destinationDir = aptDumpDir
@@ -47,15 +44,16 @@ task generateJpaMetamodelClasses(type: Compile) {
         sourceSets.test.generatedJpaMetamodelSrcDir.mkdirs()
     }
 }
-
 // for the time being eat the annoying output from running the annotation processors
-generateJpaMetamodelClasses.logging.captureStandardError(LogLevel.INFO)
-
-compileTestJava.dependsOn generateJpaMetamodelClasses
+generateTestJpaMetamodelClasses.logging.captureStandardError(LogLevel.INFO)
+compileTestJava.dependsOn generateTestJpaMetamodelClasses
 compileTestJava.options.define(compilerArgs: ["-proc:none"])
 
 
-bundlesTargetDir = file( "$buildDirName/bundles" )
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Process 'bundle resources' for the packaging tests
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+bundlesTargetDir = file( "${buildDir}/bundles" )
 task copyBundleResources (type: Copy) {
     from file('src/test/bundles') 
     into bundlesTargetDir
@@ -71,6 +69,5 @@ task copyBundleResources (type: Copy) {
         bundlesTargetDir.mkdirs()
     }
 }
-
-// make sure that the bundles for the packaged test (PackagingTestCase) are copied as well
 processTestResources.dependsOn copyBundleResources
+

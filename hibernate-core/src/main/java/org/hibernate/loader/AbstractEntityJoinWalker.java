@@ -24,16 +24,18 @@
  */
 package org.hibernate.loader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+
 import org.hibernate.FetchMode;
 import org.hibernate.LockOptions;
 import org.hibernate.MappingException;
+import org.hibernate.engine.profile.Fetch;
+import org.hibernate.engine.profile.FetchProfile;
 import org.hibernate.engine.spi.CascadeStyle;
 import org.hibernate.engine.spi.LoadQueryInfluencers;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
-import org.hibernate.engine.profile.Fetch;
-import org.hibernate.engine.profile.FetchProfile;
 import org.hibernate.persister.entity.Loadable;
 import org.hibernate.persister.entity.OuterJoinLoadable;
 import org.hibernate.sql.JoinFragment;
@@ -126,7 +128,7 @@ public abstract class AbstractEntityJoinWalker extends JoinWalker {
 								projection
 				)
 				.setFromClause(
-						getDialect().appendLockHint( lockOptions.getLockMode(), persister.fromTableFragment( alias ) ) +
+						getDialect().appendLockHint( lockOptions, persister.fromTableFragment( alias ) ) +
 								persister.fromJoinFragment( alias, true, true )
 				)
 				.setWhereClause( condition )
@@ -183,6 +185,21 @@ public abstract class AbstractEntityJoinWalker extends JoinWalker {
 	}
 
 	public abstract String getComment();
+
+	@Override
+    protected boolean isDuplicateAssociation(
+		final String foreignKeyTable,
+		final String[] foreignKeyColumns
+	) {
+		//disable a join back to this same association
+		final boolean isSameJoin =
+				persister.getTableName().equals( foreignKeyTable ) &&
+						Arrays.equals( foreignKeyColumns, persister.getKeyColumnNames() );
+		return isSameJoin ||
+			super.isDuplicateAssociation(foreignKeyTable, foreignKeyColumns);
+	}
+
+
 
 	protected final Loadable getPersister() {
 		return persister;

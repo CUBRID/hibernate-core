@@ -57,6 +57,7 @@ public enum LockMode {
 	 *
 	 * @deprecated instead use PESSIMISTIC_WRITE
 	 */
+    @Deprecated
 	UPGRADE( 10 ),
 	/**
 	 * Attempt to obtain an upgrade lock, using an Oracle-style
@@ -79,6 +80,7 @@ public enum LockMode {
 	 *
 	 * @deprecated instead use PESSIMISTIC_FORCE_INCREMENT
 	 */
+    @Deprecated
 	FORCE( 15 ),
 
 	/**
@@ -89,13 +91,13 @@ public enum LockMode {
 	 * Optimisticly assume that transaction will not experience contention for
 	 * entities.  The entity version will be verified near the transaction end.
 	 */
-	OPTIMISTIC( 3 ),
+	OPTIMISTIC( 6 ),
 
 	/**
-	 * Optimisticly assume that transaction will not experience contention for entities.
-	 * The entity version will be verified and incremented near the transaction end.
+	 * Optimisticly assume that transaction will not experience contention for
+	 * entities.  The entity version will be verified and incremented near the transaction end.
 	 */
-	OPTIMISTIC_FORCE_INCREMENT( 4 ),
+	OPTIMISTIC_FORCE_INCREMENT( 7 ),
 
 	/**
 	 * Implemented as PESSIMISTIC_WRITE.

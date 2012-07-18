@@ -25,19 +25,21 @@ package org.hibernate.test.annotations.naturalid;
 
 import java.util.List;
 
+import org.junit.After;
+import org.junit.Test;
+
 import org.hibernate.Criteria;
+import org.hibernate.NaturalIdLoadAccess;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.criterion.Restrictions;
 import org.hibernate.metadata.ClassMetadata;
 import org.hibernate.stat.Statistics;
-
-import org.junit.Test;
-
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -48,6 +50,18 @@ import static org.junit.Assert.assertTrue;
  */
 @SuppressWarnings("unchecked")
 public class NaturalIdTest extends BaseCoreFunctionalTestCase {
+	@After
+	public void cleanupData() {
+		super.cleanupCache();
+		Session s = sessionFactory().openSession();
+		s.beginTransaction();
+		s.createQuery( "delete NaturalIdOnManyToOne" ).executeUpdate();
+		s.createQuery( "delete Citizen" ).executeUpdate();
+		s.createQuery( "delete State" ).executeUpdate();
+		s.getTransaction().commit();
+		s.close();
+	}
+
 	@Test
 	public void testMappingProperties() {
 		ClassMetadata metaData = sessionFactory().getClassMetadata(
@@ -64,49 +78,159 @@ public class NaturalIdTest extends BaseCoreFunctionalTestCase {
 	@Test
 	public void testNaturalIdCached() {
 		saveSomeCitizens();
-
+		
 		Session s = openSession();
 		Transaction tx = s.beginTransaction();
-		State france = ( State ) s.load( State.class, 2 );
+		State france = this.getState( s, "Ile de France" );
 		Criteria criteria = s.createCriteria( Citizen.class );
-		criteria.add(
-				Restrictions.naturalId().set( "ssn", "1234" ).set(
-						"state",
-						france
-				)
-		);
+		criteria.add( Restrictions.naturalId().set( "ssn", "1234" ).set( "state", france ) );
 		criteria.setCacheable( true );
+		
+		this.cleanupCache();
 
 		Statistics stats = sessionFactory().getStatistics();
 		stats.setStatisticsEnabled( true );
 		stats.clear();
-		assertEquals(
-				"Cache hits should be empty", 0, stats
-						.getQueryCacheHitCount()
-		);
+		assertEquals( "Cache hits should be empty", 0, stats.getNaturalIdCacheHitCount() );
+		assertEquals( "Cache puts should be empty", 0, stats.getNaturalIdCachePutCount() );
 
 		// first query
 		List results = criteria.list();
 		assertEquals( 1, results.size() );
-		assertEquals(
-				"Cache hits should be empty", 0, stats
-						.getQueryCacheHitCount()
-		);
-		assertEquals(
-				"First query should be a miss", 1, stats
-						.getQueryCacheMissCount()
-		);
-		assertEquals(
-				"Query result should be added to cache", 1, stats
-						.getQueryCachePutCount()
-		);
+		assertEquals( "NaturalId Cache Hits", 0, stats.getNaturalIdCacheHitCount() );
+		assertEquals( "NaturalId Cache Misses", 1, stats.getNaturalIdCacheMissCount() );
+		assertEquals( "NaturalId Cache Puts", 1, stats.getNaturalIdCachePutCount() );
+		assertEquals( "NaturalId Cache Queries", 1, stats.getNaturalIdQueryExecutionCount() );
 
-		// query a second time - result should be cached
+		// query a second time - result should be cached in session
 		criteria.list();
-		assertEquals(
-				"Cache hits should be empty", 1, stats
-						.getQueryCacheHitCount()
-		);
+		assertEquals( "NaturalId Cache Hits", 0, stats.getNaturalIdCacheHitCount() );
+		assertEquals( "NaturalId Cache Misses", 1, stats.getNaturalIdCacheMissCount() );
+		assertEquals( "NaturalId Cache Puts", 1, stats.getNaturalIdCachePutCount() );
+		assertEquals( "NaturalId Cache Queries", 1, stats.getNaturalIdQueryExecutionCount() );
+
+		// cleanup
+		tx.rollback();
+		s.close();
+	}
+
+	@Test
+	public void testNaturalIdLoaderNotCached() {
+		saveSomeCitizens();
+
+		Session s = openSession();
+		Transaction tx = s.beginTransaction();
+		State france = this.getState( s, "Ile de France" );
+		final NaturalIdLoadAccess naturalIdLoader = s.byNaturalId( Citizen.class );
+		naturalIdLoader.using( "ssn", "1234" ).using( "state", france );
+
+		//NaturalId cache gets populated during entity loading, need to clear it out
+		this.cleanupCache();
+		Statistics stats = sessionFactory().getStatistics();
+		stats.setStatisticsEnabled( true );
+		stats.clear();
+		assertEquals( "NaturalId Cache Hits", 0, stats.getNaturalIdCacheHitCount() );
+		assertEquals( "NaturalId Cache Misses", 0, stats.getNaturalIdCacheMissCount() );
+		assertEquals( "NaturalId Cache Puts", 0, stats.getNaturalIdCachePutCount() );
+		assertEquals( "NaturalId Cache Queries", 0, stats.getNaturalIdQueryExecutionCount() );
+
+		// first query
+		Citizen citizen = (Citizen)naturalIdLoader.load();
+		assertNotNull( citizen );
+		assertEquals( "NaturalId Cache Hits", 0, stats.getNaturalIdCacheHitCount() );
+		assertEquals( "NaturalId Cache Misses", 1, stats.getNaturalIdCacheMissCount() );
+		assertEquals( "NaturalId Cache Puts", 1, stats.getNaturalIdCachePutCount() );
+		assertEquals( "NaturalId Cache Queries", 1, stats.getNaturalIdQueryExecutionCount() );
+
+		// cleanup
+		tx.rollback();
+		s.close();
+	}
+
+	@Test
+	public void testNaturalIdLoaderCached() {
+		Statistics stats = sessionFactory().getStatistics();
+		stats.setStatisticsEnabled( true );
+		stats.clear();
+		
+		assertEquals( "NaturalId Cache Hits", 0, stats.getNaturalIdCacheHitCount() );
+		assertEquals( "NaturalId Cache Misses", 0, stats.getNaturalIdCacheMissCount() );
+		assertEquals( "NaturalId Cache Puts", 0, stats.getNaturalIdCachePutCount() );
+		assertEquals( "NaturalId Cache Queries", 0, stats.getNaturalIdQueryExecutionCount() );
+
+		saveSomeCitizens();
+		
+		assertEquals( "NaturalId Cache Hits", 0, stats.getNaturalIdCacheHitCount() );
+		assertEquals( "NaturalId Cache Misses", 0, stats.getNaturalIdCacheMissCount() );
+		assertEquals( "NaturalId Cache Puts", 2, stats.getNaturalIdCachePutCount() );
+		assertEquals( "NaturalId Cache Queries", 0, stats.getNaturalIdQueryExecutionCount() );
+
+		
+		//Try NaturalIdLoadAccess after insert
+		
+		Session s = openSession();
+		Transaction tx = s.beginTransaction();
+		State france = this.getState( s, "Ile de France" );
+		NaturalIdLoadAccess naturalIdLoader = s.byNaturalId( Citizen.class );
+		naturalIdLoader.using( "ssn", "1234" ).using( "state", france );
+
+		//Not clearing naturalId caches, should be warm from entity loading
+		stats.clear();
+
+		// first query
+		Citizen citizen = (Citizen)naturalIdLoader.load();
+		assertNotNull( citizen );
+		assertEquals( "NaturalId Cache Hits", 1, stats.getNaturalIdCacheHitCount() );
+		assertEquals( "NaturalId Cache Misses", 0, stats.getNaturalIdCacheMissCount() );
+		assertEquals( "NaturalId Cache Puts", 0, stats.getNaturalIdCachePutCount() );
+		assertEquals( "NaturalId Cache Queries", 0, stats.getNaturalIdQueryExecutionCount() );
+
+		// cleanup
+		tx.rollback();
+		s.close();
+		
+		
+		//Try NaturalIdLoadAccess
+
+		s = openSession();
+		tx = s.beginTransaction();
+
+		this.cleanupCache();
+		stats.setStatisticsEnabled( true );
+		stats.clear();
+
+		// first query
+		citizen = (Citizen) s.get( Citizen.class, citizen.getId() );
+		assertNotNull( citizen );
+		assertEquals( "NaturalId Cache Hits", 0, stats.getNaturalIdCacheHitCount() );
+		assertEquals( "NaturalId Cache Misses", 0, stats.getNaturalIdCacheMissCount() );
+		assertEquals( "NaturalId Cache Puts", 1, stats.getNaturalIdCachePutCount() );
+		assertEquals( "NaturalId Cache Queries", 0, stats.getNaturalIdQueryExecutionCount() );
+
+		// cleanup
+		tx.rollback();
+		s.close();
+
+		
+		//Try NaturalIdLoadAccess after load
+		
+		s = openSession();
+		tx = s.beginTransaction();
+		france = this.getState( s, "Ile de France" );
+		naturalIdLoader = s.byNaturalId( Citizen.class );
+		naturalIdLoader.using( "ssn", "1234" ).using( "state", france );
+
+		//Not clearing naturalId caches, should be warm from entity loading
+		stats.setStatisticsEnabled( true );
+		stats.clear();
+
+		// first query
+		citizen = (Citizen)naturalIdLoader.load();
+		assertNotNull( citizen );
+		assertEquals( "NaturalId Cache Hits", 1, stats.getNaturalIdCacheHitCount() );
+		assertEquals( "NaturalId Cache Misses", 0, stats.getNaturalIdCacheMissCount() );
+		assertEquals( "NaturalId Cache Puts", 0, stats.getNaturalIdCachePutCount() );
+		assertEquals( "NaturalId Cache Queries", 0, stats.getNaturalIdQueryExecutionCount() );
 
 		// cleanup
 		tx.rollback();
@@ -119,7 +243,7 @@ public class NaturalIdTest extends BaseCoreFunctionalTestCase {
 
 		Session s = openSession();
 		Transaction tx = s.beginTransaction();
-		State france = ( State ) s.load( State.class, 2 );
+		State france = this.getState( s, "Ile de France" );
 		Criteria criteria = s.createCriteria( Citizen.class );
 		criteria.add(
 				Restrictions.naturalId().set( "ssn", "1234" ).set(
@@ -128,13 +252,15 @@ public class NaturalIdTest extends BaseCoreFunctionalTestCase {
 				)
 		);
 		criteria.setCacheable( false );
+		
+		this.cleanupCache();
 
 		Statistics stats = sessionFactory().getStatistics();
 		stats.setStatisticsEnabled( true );
 		stats.clear();
 		assertEquals(
 				"Cache hits should be empty", 0, stats
-						.getQueryCacheHitCount()
+						.getNaturalIdCacheHitCount()
 		);
 
 		// first query
@@ -142,18 +268,26 @@ public class NaturalIdTest extends BaseCoreFunctionalTestCase {
 		assertEquals( 1, results.size() );
 		assertEquals(
 				"Cache hits should be empty", 0, stats
-						.getQueryCacheHitCount()
+						.getNaturalIdCacheHitCount()
 		);
 		assertEquals(
-				"Query result should be added to cache", 0, stats
-						.getQueryCachePutCount()
+				"Query execution count should be one", 1, stats
+						.getNaturalIdQueryExecutionCount()
 		);
 
-		// query a second time
+		// query a second time - result should be cached in session
 		criteria.list();
 		assertEquals(
 				"Cache hits should be empty", 0, stats
-						.getQueryCacheHitCount()
+						.getNaturalIdCacheHitCount()
+		);
+		assertEquals(
+				"Second query should not be a miss", 1, stats
+						.getNaturalIdCacheMissCount()
+		);
+		assertEquals(
+				"Query execution count should be one", 1, stats
+						.getNaturalIdQueryExecutionCount()
 		);
 
 		// cleanup
@@ -195,6 +329,13 @@ public class NaturalIdTest extends BaseCoreFunctionalTestCase {
 		s.persist( c2 );
 		tx.commit();
 		s.close();
+	}
+
+	private State getState(Session s, String name) {
+		Criteria criteria = s.createCriteria( State.class );
+		criteria.add( Restrictions.eq( "name", name ) );
+		criteria.setCacheable( true );
+		return (State) criteria.list().get( 0 );
 	}
 
 	@Override

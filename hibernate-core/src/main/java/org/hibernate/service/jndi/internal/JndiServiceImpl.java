@@ -23,6 +23,8 @@
  */
 package org.hibernate.service.jndi.internal;
 
+import java.util.Hashtable;
+import java.util.Map;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.InvalidNameException;
@@ -31,8 +33,6 @@ import javax.naming.NameNotFoundException;
 import javax.naming.NamingException;
 import javax.naming.event.EventContext;
 import javax.naming.event.NamespaceChangeListener;
-import java.util.Hashtable;
-import java.util.Map;
 
 import org.jboss.logging.Logger;
 
@@ -116,7 +116,7 @@ public class JndiServiceImpl implements JndiService {
 
 	private void bind(Name name, Object value, Context context) {
 		try {
-            LOG.tracef( "Binding : %s", name );
+			LOG.tracef( "Binding : %s", name );
 			context.rebind( name, value );
 		}
 		catch ( Exception initialException ) {
@@ -134,7 +134,7 @@ public class JndiServiceImpl implements JndiService {
 
 				Context intermediateContext = null;
 				try {
-                    LOG.trace("Intermediate lookup: " + intermediateContextName);
+					LOG.tracev( "Intermediate lookup: {0}", intermediateContextName );
 					intermediateContext = (Context) intermediateContextBase.lookup( intermediateContextName );
 				}
 				catch ( NameNotFoundException handledBelow ) {
@@ -144,9 +144,11 @@ public class JndiServiceImpl implements JndiService {
 					throw new JndiException( "Unanticipated error doing intermediate lookup", e );
 				}
 
-                if (intermediateContext != null) LOG.trace("Found intermediate context: " + intermediateContextName);
+				if ( intermediateContext != null ) {
+					LOG.tracev( "Found intermediate context: {0}", intermediateContextName );
+				}
 				else {
-                    LOG.trace("Creating sub-context: " + intermediateContextName);
+					LOG.tracev( "Creating sub-context: {0}", intermediateContextName );
 					try {
 						intermediateContext = intermediateContextBase.createSubcontext( intermediateContextName );
 					}
@@ -157,7 +159,7 @@ public class JndiServiceImpl implements JndiService {
 				intermediateContextBase = intermediateContext;
 				name = name.getSuffix( 1 );
 			}
-            LOG.trace("Binding : " + name);
+			LOG.tracev( "Binding : {0}", name );
 			try {
 				intermediateContextBase.rebind( name, value );
 			}
@@ -165,7 +167,7 @@ public class JndiServiceImpl implements JndiService {
 				throw new JndiException( "Error performing intermediate bind [" + name + "]", e );
 			}
 		}
-        LOG.debugf( "Bound name: %s", name );
+		LOG.debugf( "Bound name: %s", name );
 	}
 
 	@Override

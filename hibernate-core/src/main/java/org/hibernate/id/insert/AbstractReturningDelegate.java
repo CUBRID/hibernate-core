@@ -26,6 +26,7 @@ package org.hibernate.id.insert;
 import java.io.Serializable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.id.PostInsertIdentityPersister;
 import org.hibernate.pretty.MessageHelper;
@@ -45,7 +46,10 @@ public abstract class AbstractReturningDelegate implements InsertGeneratedIdenti
 		this.persister = persister;
 	}
 
-	public final Serializable performInsert(String insertSQL, SessionImplementor session, Binder binder) {
+	public final Serializable performInsert(
+			String insertSQL,
+			SessionImplementor session,
+			Binder binder) {
 		try {
 			// prepare and execute the insert
 			PreparedStatement insert = prepare( insertSQL, session );

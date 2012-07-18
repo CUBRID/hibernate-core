@@ -32,6 +32,7 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
+
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.JoinFormula;
@@ -58,7 +59,7 @@ public class Product implements Serializable
     public String description;
 
     @ManyToOne
-	@JoinFormula(value="SUBSTR(product_idnf, 1, 3)", 
+	@JoinFormula(value="SUBSTRING(product_idnf, 1, 3)",
 				 referencedColumnName="product_idnf")
 	@Fetch(FetchMode.JOIN)
     private Product productFamily;

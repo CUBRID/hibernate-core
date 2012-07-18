@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import org.junit.Test;
+
 import org.hibernate.HibernateException;
 import org.hibernate.Query;
 import org.hibernate.SQLQuery;
@@ -13,11 +15,9 @@ import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.dialect.HSQLDialect;
 import org.hibernate.dialect.MySQLDialect;
+import org.hibernate.dialect.PostgreSQL81Dialect;
 import org.hibernate.dialect.PostgreSQLDialect;
 import org.hibernate.dialect.TimesTenDialect;
-
-import org.junit.Test;
-
 import org.hibernate.testing.FailureExpected;
 import org.hibernate.testing.SkipForDialect;
 import org.hibernate.testing.TestForIssue;
@@ -374,7 +374,7 @@ public class SQLLoaderTest extends LegacyTestCase {
 	}
 
 	@Test
-	@SkipForDialect( { HSQLDialect.class, PostgreSQLDialect.class } )
+	@SkipForDialect( { HSQLDialect.class, PostgreSQL81Dialect.class, PostgreSQLDialect.class } )
 	public void testEscapedJDBC() throws HibernateException, SQLException {
 		Session session = openSession();
 		session.beginTransaction();

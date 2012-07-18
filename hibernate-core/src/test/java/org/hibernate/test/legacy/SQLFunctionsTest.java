@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.jboss.logging.Logger;
+import org.junit.Test;
 
 import org.hibernate.Query;
 import org.hibernate.ScrollableResults;
@@ -50,8 +51,6 @@ import org.hibernate.dialect.SybaseAnywhereDialect;
 import org.hibernate.dialect.SybaseDialect;
 import org.hibernate.dialect.TimesTenDialect;
 import org.hibernate.dialect.function.SQLFunction;
-
-import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -75,7 +74,6 @@ public class SQLFunctionsTest extends LegacyTestCase {
 	public void testDialectSQLFunctions() throws Exception {
 		Session s = openSession();
 		Transaction t = s.beginTransaction();
-
 		Iterator iter = s.createQuery( "select max(s.count) from Simple s" ).iterate();
 
 		if ( getDialect() instanceof MySQLDialect ) assertTrue( iter.hasNext() && iter.next()==null );
@@ -102,7 +100,7 @@ public class SQLFunctionsTest extends LegacyTestCase {
 
 		if ( getDialect() instanceof Oracle9iDialect ) {
 			// Check Oracle Dialect mix of dialect functions - no args (no parenthesis and single arg functions
-			List rset = s.createQuery( "select s.name, sysdate(), trunc(s.pay), round(s.pay) from Simple s" ).list();
+			List rset = s.createQuery( "select s.name, sysdate, trunc(s.pay), round(s.pay) from Simple s" ).list();
 			assertNotNull("Name string should have been returned",(((Object[])rset.get(0))[0]));
 			assertNotNull("Todays Date should have been returned",(((Object[])rset.get(0))[1]));
 			assertEquals("trunc(45.8) result was incorrect ", Float.valueOf(45), ( (Object[]) rset.get(0) )[2] );
@@ -117,7 +115,7 @@ public class SQLFunctionsTest extends LegacyTestCase {
 
 			// Test a larger depth 3 function example - Not a useful combo other than for testing
 			assertTrue(
-					s.createQuery( "select trunc(round(sysdate())) from Simple s" ).list().size() == 1
+					s.createQuery( "select trunc(round(sysdate)) from Simple s" ).list().size() == 1
 			);
 
 			// Test the oracle standard NVL funtion as a test of multi-param functions...

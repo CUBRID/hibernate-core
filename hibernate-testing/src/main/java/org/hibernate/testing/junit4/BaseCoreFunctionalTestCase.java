@@ -34,6 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.junit.After;
+import org.junit.Before;
+
 import org.hibernate.HibernateException;
 import org.hibernate.Interceptor;
 import org.hibernate.Session;
@@ -53,13 +56,12 @@ import org.hibernate.mapping.Property;
 import org.hibernate.mapping.SimpleValue;
 import org.hibernate.metamodel.MetadataSources;
 import org.hibernate.metamodel.source.MetadataImplementor;
-import org.hibernate.service.BasicServiceRegistry;
+import org.hibernate.service.BootstrapServiceRegistry;
+import org.hibernate.service.BootstrapServiceRegistryBuilder;
+import org.hibernate.service.ServiceRegistry;
+import org.hibernate.service.ServiceRegistryBuilder;
 import org.hibernate.service.config.spi.ConfigurationService;
-import org.hibernate.service.internal.BasicServiceRegistryImpl;
-
-import org.junit.After;
-import org.junit.Before;
-
+import org.hibernate.service.internal.StandardServiceRegistryImpl;
 import org.hibernate.testing.AfterClassOnce;
 import org.hibernate.testing.BeforeClassOnce;
 import org.hibernate.testing.OnExpectedFailure;
@@ -74,6 +76,7 @@ import static org.junit.Assert.fail;
  *
  * @author Steve Ebersole
  */
+@SuppressWarnings( {"deprecation"} )
 public abstract class BaseCoreFunctionalTestCase extends BaseUnitTestCase {
 	public static final String VALIDATE_DATA_CLEANUP = "hibernate.test.validateDataCleanup";
 	public static final String USE_NEW_METADATA_MAPPINGS = "hibernate.test.new_metadata_mappings";
@@ -82,10 +85,10 @@ public abstract class BaseCoreFunctionalTestCase extends BaseUnitTestCase {
 
 	private boolean isMetadataUsed;
 	private Configuration configuration;
-	private BasicServiceRegistryImpl serviceRegistry;
+	private StandardServiceRegistryImpl serviceRegistry;
 	private SessionFactoryImplementor sessionFactory;
 
-	private Session session;
+	protected Session session;
 
 	protected static Dialect getDialect() {
 		return DIALECT;
@@ -95,7 +98,7 @@ public abstract class BaseCoreFunctionalTestCase extends BaseUnitTestCase {
 		return configuration;
 	}
 
-	protected BasicServiceRegistryImpl serviceRegistry() {
+	protected StandardServiceRegistryImpl serviceRegistry() {
 		return serviceRegistry;
 	}
 
@@ -118,7 +121,7 @@ public abstract class BaseCoreFunctionalTestCase extends BaseUnitTestCase {
 
 	@BeforeClassOnce
 	@SuppressWarnings( {"UnusedDeclaration"})
-	private void buildSessionFactory() {
+	protected void buildSessionFactory() {
 		// for now, build the configuration to get all the property settings
 		configuration = constructAndConfigureConfiguration();
 		serviceRegistry = buildServiceRegistry( configuration );
@@ -143,7 +146,7 @@ public abstract class BaseCoreFunctionalTestCase extends BaseUnitTestCase {
 		afterSessionFactoryBuilt();
 	}
 
-	private MetadataImplementor buildMetadata(BasicServiceRegistry serviceRegistry) {
+	private MetadataImplementor buildMetadata(ServiceRegistry serviceRegistry) {
 		 	MetadataSources sources = new MetadataSources( serviceRegistry );
 			addMappings( sources );
 			return (MetadataImplementor) sources.buildMetadata();
@@ -315,17 +318,29 @@ public abstract class BaseCoreFunctionalTestCase extends BaseUnitTestCase {
 	protected void afterConfigurationBuilt(Mappings mappings, Dialect dialect) {
 	}
 
-	protected BasicServiceRegistryImpl buildServiceRegistry(Configuration configuration) {
+	protected StandardServiceRegistryImpl buildServiceRegistry(Configuration configuration) {
 		Properties properties = new Properties();
 		properties.putAll( configuration.getProperties() );
 		Environment.verifyProperties( properties );
 		ConfigurationHelper.resolvePlaceHolders( properties );
-		BasicServiceRegistryImpl serviceRegistry = (BasicServiceRegistryImpl) new org.hibernate.service.ServiceRegistryBuilder( properties ).buildServiceRegistry();
-		applyServices( serviceRegistry );
-		return serviceRegistry;
+
+		final BootstrapServiceRegistry bootstrapServiceRegistry = generateBootstrapRegistry( properties );
+		ServiceRegistryBuilder registryBuilder = new ServiceRegistryBuilder( bootstrapServiceRegistry )
+				.applySettings( properties );
+		prepareBasicRegistryBuilder( registryBuilder );
+		return (StandardServiceRegistryImpl) registryBuilder.buildServiceRegistry();
 	}
 
-	protected void applyServices(BasicServiceRegistryImpl serviceRegistry) {
+	protected BootstrapServiceRegistry generateBootstrapRegistry(Properties properties) {
+		final BootstrapServiceRegistryBuilder builder = new BootstrapServiceRegistryBuilder();
+		prepareBootstrapRegistryBuilder( builder );
+		return builder.build();
+	}
+
+	protected void prepareBootstrapRegistryBuilder(BootstrapServiceRegistryBuilder builder) {
+	}
+
+	protected void prepareBasicRegistryBuilder(ServiceRegistryBuilder serviceRegistryBuilder) {
 	}
 
 	protected void afterSessionFactoryBuilt() {
@@ -348,6 +363,11 @@ public abstract class BaseCoreFunctionalTestCase extends BaseUnitTestCase {
 		sessionFactory.close();
 		sessionFactory = null;
 		configuration = null;
+        if(serviceRegistry == null){
+            return;
+        }
+        serviceRegistry.destroy();
+        serviceRegistry=null;
 	}
 
 	@OnFailure
@@ -390,12 +410,35 @@ public abstract class BaseCoreFunctionalTestCase extends BaseUnitTestCase {
 
 	@After
 	public final void afterTest() throws Exception {
+		if ( isCleanupTestDataRequired() ) {
+			cleanupTestData();
+		}
 		cleanupTest();
 
 		cleanupSession();
 
 		assertAllDataRemoved();
+
 	}
+
+	protected void cleanupCache() {
+		if ( sessionFactory != null ) {
+			sessionFactory.getCache().evictCollectionRegions();
+			sessionFactory.getCache().evictDefaultQueryRegion();
+			sessionFactory.getCache().evictEntityRegions();
+			sessionFactory.getCache().evictQueryRegions();
+			sessionFactory.getCache().evictNaturalIdRegions();
+		}
+	}
+	protected boolean isCleanupTestDataRequired(){return false;}
+	protected void cleanupTestData() throws Exception {
+		Session s = openSession();
+		s.beginTransaction();
+		s.createQuery( "delete from java.lang.Object" ).executeUpdate();
+		s.getTransaction().commit();
+		s.close();
+	}
+
 
 	private void cleanupSession() {
 		if ( session != null && ! ( (SessionImplementor) session ).isClosed() ) {
@@ -434,9 +477,9 @@ public abstract class BaseCoreFunctionalTestCase extends BaseUnitTestCase {
 				for ( Object element : list ) {
 					Integer l = items.get( tmpSession.getEntityName( element ) );
 					if ( l == null ) {
-						l = Integer.valueOf( 0 );
+						l = 0;
 					}
-					l = Integer.valueOf( l.intValue() + 1 ) ;
+					l = l + 1 ;
 					items.put( tmpSession.getEntityName( element ), l );
 					System.out.println( "Data left: " + element );
 				}

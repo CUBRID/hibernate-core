@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.jboss.logging.Logger;
+import org.junit.Test;
 
 import org.hibernate.Criteria;
 import org.hibernate.FetchMode;
@@ -47,14 +48,12 @@ import org.hibernate.criterion.Property;
 import org.hibernate.criterion.Restrictions;
 import org.hibernate.criterion.Subqueries;
 import org.hibernate.dialect.IngresDialect;
+import org.hibernate.dialect.SybaseASE15Dialect;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.persister.collection.CollectionPersister;
 import org.hibernate.testing.SkipForDialect;
-import org.hibernate.transform.DistinctRootEntityResultTransformer;
-
-import org.junit.Test;
-
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
+import org.hibernate.transform.DistinctRootEntityResultTransformer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -66,6 +65,7 @@ import static org.junit.Assert.assertTrue;
  *
  * @author Steve Ebersole
  */
+@SkipForDialect( value = SybaseASE15Dialect.class, jiraKey = "HHH-3637")
 public class DynamicFilterTest extends BaseCoreFunctionalTestCase {
 	private static final Logger log = Logger.getLogger( DynamicFilterTest.class );
 
@@ -95,7 +95,7 @@ public class DynamicFilterTest extends BaseCoreFunctionalTestCase {
 	}
 
 	@Test
-	@SkipForDialect(IngresDialect.class)
+	@SkipForDialect( value = {SybaseASE15Dialect.class, IngresDialect.class})
 	public void testSqlSyntaxOfFiltersWithUnions() {
 		Session session = openSession();
 		session.enableFilter( "unioned" );

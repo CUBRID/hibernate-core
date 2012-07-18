@@ -26,24 +26,24 @@ package org.hibernate.metamodel.source.hbm;
 import java.util.List;
 
 import org.hibernate.FetchMode;
+import org.hibernate.internal.jaxb.mapping.hbm.JaxbManyToManyElement;
 import org.hibernate.internal.util.StringHelper;
 import org.hibernate.metamodel.source.LocalBindingContext;
 import org.hibernate.metamodel.source.binder.ManyToManyPluralAttributeElementSource;
 import org.hibernate.metamodel.source.binder.PluralAttributeElementNature;
 import org.hibernate.metamodel.source.binder.RelationalValueSource;
-import org.hibernate.metamodel.source.hbm.jaxb.mapping.XMLManyToManyElement;
 
 /**
  * @author Steve Ebersole
  */
 public class ManyToManyPluralAttributeElementSourceImpl implements ManyToManyPluralAttributeElementSource {
-	private final XMLManyToManyElement manyToManyElement;
+	private final JaxbManyToManyElement manyToManyElement;
 	private final LocalBindingContext bindingContext;
 
 	private final List<RelationalValueSource> valueSources;
 
 	public ManyToManyPluralAttributeElementSourceImpl(
-			final XMLManyToManyElement manyToManyElement,
+			final JaxbManyToManyElement manyToManyElement,
 			final LocalBindingContext bindingContext) {
 		this.manyToManyElement = manyToManyElement;
 		this.bindingContext = bindingContext;

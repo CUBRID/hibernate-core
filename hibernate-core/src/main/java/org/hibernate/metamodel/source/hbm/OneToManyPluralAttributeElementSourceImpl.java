@@ -23,21 +23,21 @@
  */
 package org.hibernate.metamodel.source.hbm;
 
+import org.hibernate.internal.jaxb.mapping.hbm.JaxbOneToManyElement;
 import org.hibernate.internal.util.StringHelper;
 import org.hibernate.metamodel.source.LocalBindingContext;
 import org.hibernate.metamodel.source.binder.OneToManyPluralAttributeElementSource;
 import org.hibernate.metamodel.source.binder.PluralAttributeElementNature;
-import org.hibernate.metamodel.source.hbm.jaxb.mapping.XMLOneToManyElement;
 
 /**
  * @author Steve Ebersole
  */
 public class OneToManyPluralAttributeElementSourceImpl implements OneToManyPluralAttributeElementSource {
-	private final XMLOneToManyElement oneToManyElement;
+	private final JaxbOneToManyElement oneToManyElement;
 	private final LocalBindingContext bindingContext;
 
 	public OneToManyPluralAttributeElementSourceImpl(
-			XMLOneToManyElement oneToManyElement,
+			JaxbOneToManyElement oneToManyElement,
 			LocalBindingContext bindingContext) {
 		this.oneToManyElement = oneToManyElement;
 		this.bindingContext = bindingContext;

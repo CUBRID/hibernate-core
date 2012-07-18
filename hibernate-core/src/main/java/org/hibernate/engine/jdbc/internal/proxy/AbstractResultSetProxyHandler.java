@@ -28,11 +28,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import org.hibernate.internal.CoreMessageLogger;
+import org.jboss.logging.Logger;
+
 import org.hibernate.engine.jdbc.spi.JdbcResourceRegistry;
 import org.hibernate.engine.jdbc.spi.JdbcServices;
-
-import org.jboss.logging.Logger;
+import org.hibernate.internal.CoreMessageLogger;
 
 /**
  * Basic support for building {@link ResultSet}-based proxy handlers
@@ -67,11 +67,9 @@ public abstract class AbstractResultSetProxyHandler extends AbstractProxyHandler
 	}
 
 	@Override
-    protected Object continueInvocation(Object proxy, Method method, Object[] args) throws Throwable {
-		String methodName = method.getName();
-        if (LOG.isTraceEnabled()) {
-           LOG.trace("Handling invocation of ResultSet method [" + methodName + "]");
-        }
+	protected Object continueInvocation(Object proxy, Method method, Object[] args) throws Throwable {
+		final String methodName = method.getName();
+		LOG.tracev( "Handling invocation of ResultSet method [{0}]", methodName );
 
 		// other methods allowed while invalid ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		if ( "close".equals( methodName ) ) {

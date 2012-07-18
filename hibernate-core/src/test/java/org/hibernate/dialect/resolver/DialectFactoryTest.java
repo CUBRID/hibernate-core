@@ -34,6 +34,7 @@ import org.junit.Test;
 
 import org.hibernate.HibernateException;
 import org.hibernate.cfg.Environment;
+import org.hibernate.dialect.DB2400Dialect;
 import org.hibernate.dialect.DB2Dialect;
 import org.hibernate.dialect.DerbyDialect;
 import org.hibernate.dialect.DerbyTenFiveDialect;
@@ -48,7 +49,8 @@ import org.hibernate.dialect.MySQLDialect;
 import org.hibernate.dialect.Oracle10gDialect;
 import org.hibernate.dialect.Oracle8iDialect;
 import org.hibernate.dialect.Oracle9iDialect;
-import org.hibernate.dialect.PostgreSQLDialect;
+import org.hibernate.dialect.PostgreSQL81Dialect;
+import org.hibernate.dialect.PostgreSQL82Dialect;
 import org.hibernate.dialect.SQLServerDialect;
 import org.hibernate.dialect.SybaseASE15Dialect;
 import org.hibernate.dialect.SybaseAnywhereDialect;
@@ -126,7 +128,8 @@ public class DialectFactoryTest extends BaseUnitTestCase {
 		testDetermination( "HSQL Database Engine", HSQLDialect.class, resolver );
 		testDetermination( "H2", H2Dialect.class, resolver );
 		testDetermination( "MySQL", MySQLDialect.class, resolver );
-		testDetermination( "PostgreSQL", PostgreSQLDialect.class, resolver );
+		testDetermination( "PostgreSQL", PostgreSQL81Dialect.class, resolver );
+		testDetermination( "PostgreSQL", 8, 2, PostgreSQL82Dialect.class, resolver );
 		testDetermination( "Apache Derby", 10, 4, DerbyDialect.class, resolver );
 		testDetermination( "Apache Derby", 10, 5, DerbyTenFiveDialect.class, resolver );
 		testDetermination( "Apache Derby", 10, 6, DerbyTenSixDialect.class, resolver );
@@ -147,6 +150,7 @@ public class DialectFactoryTest extends BaseUnitTestCase {
 		testDetermination( "DB2/SUN", DB2Dialect.class, resolver );
 		testDetermination( "DB2/LINUX390", DB2Dialect.class, resolver );
 		testDetermination( "DB2/AIX64", DB2Dialect.class, resolver );
+		testDetermination( "DB2 UDB for AS/400", DB2400Dialect.class, resolver );
 		testDetermination( "Oracle", 8, Oracle8iDialect.class, resolver );
 		testDetermination( "Oracle", 9, Oracle9iDialect.class, resolver );
 		testDetermination( "Oracle", 10, Oracle10gDialect.class, resolver );

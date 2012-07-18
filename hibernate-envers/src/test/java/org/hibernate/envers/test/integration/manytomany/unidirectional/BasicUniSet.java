@@ -23,23 +23,24 @@
  */
 package org.hibernate.envers.test.integration.manytomany.unidirectional;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import javax.persistence.EntityManager;
+
+import org.junit.Test;
+
 import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.test.AbstractEntityTest;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
 import org.hibernate.envers.test.Priority;
 import org.hibernate.envers.test.entities.StrTestEntity;
 import org.hibernate.envers.test.entities.manytomany.unidirectional.SetUniEntity;
 import org.hibernate.envers.test.tools.TestTools;
-import org.junit.Test;
-
-import javax.persistence.EntityManager;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
 
 /**
  * @author Adam Warski (adam at warski dot org)
  */
-public class BasicUniSet extends AbstractEntityTest {
+public class BasicUniSet extends BaseEnversJPAFunctionalTestCase {
     private Integer ed1_id;
     private Integer ed2_id;
 

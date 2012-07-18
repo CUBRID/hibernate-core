@@ -5,13 +5,17 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.hibernate.HibernateException;
-import org.hibernate.Session;
-import org.hibernate.id.PostInsertIdentifierGenerator;
-
 import org.junit.Test;
 
-import org.hibernate.testing.SkipLog;
+import org.hibernate.HibernateException;
+import org.hibernate.Session;
+import org.hibernate.dialect.Dialect;
+import org.hibernate.dialect.PostgreSQL81Dialect;
+import org.hibernate.dialect.PostgreSQLDialect;
+import org.hibernate.id.PostInsertIdentifierGenerator;
+import org.hibernate.testing.DialectCheck;
+import org.hibernate.testing.RequiresDialectFeature;
+import org.hibernate.testing.SkipForDialect;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
@@ -27,18 +31,18 @@ public class CustomSQLTest extends LegacyTestCase {
 		return new String[] { "legacy/CustomSQL.hbm.xml" };
 	}
 
-	private boolean isUsingIdentity() {
-		return PostInsertIdentifierGenerator.class.isAssignableFrom( getDialect().getNativeIdentifierGeneratorClass() );
-	}
+    public static class NonIdentityGeneratorChecker implements DialectCheck {
+        @Override
+        public boolean isMatch(Dialect dialect) {
+            return !PostInsertIdentifierGenerator.class.isAssignableFrom( getDialect().getNativeIdentifierGeneratorClass() );
+        }
+    }
 
 	@Test
+    @RequiresDialectFeature( NonIdentityGeneratorChecker.class )
+    @SkipForDialect( value = {PostgreSQL81Dialect.class, PostgreSQLDialect.class}, jiraKey = "HHH-6704")
 	@SuppressWarnings( {"UnnecessaryBoxing"})
 	public void testInsert() throws HibernateException, SQLException {
-		if ( isUsingIdentity() ) {
-			SkipLog.reportSkip( "hand sql expecting non-identity id gen", "Custom SQL" );
-			return;
-		}
-
 		Session s = openSession();
 		s.beginTransaction();
 		Role p = new Role();
@@ -82,12 +86,8 @@ public class CustomSQLTest extends LegacyTestCase {
 
 //	@Test
 	@SuppressWarnings( {"UnnecessaryBoxing", "unchecked"})
+//    @RequiresDialectFeature( NonIdentityGeneratorChecker.class )
 	public void testCollectionCUD() throws HibernateException, SQLException {
-		if ( isUsingIdentity() ) {
-			SkipLog.reportSkip( "hand sql expecting non-identity id gen", "Custom SQL" );
-			return;
-		}
-
 		Role role = new Role();
 		role.setName("Jim Flanders");
 		Intervention iv = new Medication();
@@ -135,16 +135,12 @@ public class CustomSQLTest extends LegacyTestCase {
 	}
 
 //	@Test
+//    @RequiresDialectFeature( NonIdentityGeneratorChecker.class )
 	public void testCRUD() throws HibernateException, SQLException {
-		if ( isUsingIdentity() ) {
-			SkipLog.reportSkip( "hand sql expecting non-identity id gen", "Custom SQL" );
-			return;
-		}
-
 		Person p = new Person();
 		p.setName("Max");
 		p.setLastName("Andersen");
-		p.setNationalID("110974XYZ�");
+		p.setNationalID("110974XYZ");
 		p.setAddress("P. P. Street 8");
 
 		Session s = openSession();
@@ -171,11 +167,11 @@ public class CustomSQLTest extends LegacyTestCase {
 
 		s = openSession();
 		s.beginTransaction();
-		list = s.createQuery( "select p from Person as p where p.address = 'L�rkev�nget 1'" ).list();
+		list = s.createQuery( "select p from Person as p where p.address = 'Lrkevnget 1'" ).list();
 		assertTrue(list.size() == 0);
-		p.setAddress("L�rkev�nget 1");
+		p.setAddress("Lrkevnget 1");
 		s.update(p);
-		list = s.createQuery( "select p from Person as p where p.address = 'L�rkev�nget 1'" ).list();
+		list = s.createQuery( "select p from Person as p where p.address = 'Lrkevnget 1'" ).list();
 		assertTrue(list.size() == 1);
 		list = s.createQuery( "select p from Party as p where p.address = 'P. P. Street 8'" ).list();
 		assertTrue(list.size() == 0);

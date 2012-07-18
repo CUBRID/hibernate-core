@@ -22,17 +22,20 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate.test.cid;
+
 import java.math.BigDecimal;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+
+import org.junit.Test;
 
 import org.hibernate.Hibernate;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-
-import org.junit.Test;
-
+import org.hibernate.engine.query.spi.HQLQueryPlan;
+import org.hibernate.hql.spi.QueryTranslator;
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
@@ -49,6 +52,50 @@ public class CompositeIdTest extends BaseCoreFunctionalTestCase {
 	}
 
 	@Test
+	public void testNonDistinctCountOfEntityWithCompositeId() {
+		// the check here is all based on whether we had commas in the expressions inside the count
+		final HQLQueryPlan plan = sessionFactory().getQueryPlanCache().getHQLQueryPlan(
+				"select count(o) from Order o",
+				false,
+				Collections.EMPTY_MAP
+		);
+		assertEquals( 1, plan.getTranslators().length );
+		final QueryTranslator translator = plan.getTranslators()[0];
+		final String generatedSql = translator.getSQLString();
+
+		final int countExpressionListStart = generatedSql.indexOf( "count(" );
+		final int countExpressionListEnd = generatedSql.indexOf( ")", countExpressionListStart );
+		final String countExpressionFragment = generatedSql.substring( countExpressionListStart+6, countExpressionListEnd+1 );
+		final boolean hadCommas = countExpressionFragment.contains( "," );
+
+		// set up the expectation based on Dialect...
+		final boolean expectCommas = sessionFactory().getDialect().supportsTupleCounts();
+
+		assertEquals( expectCommas, hadCommas );
+	}
+
+	@Test
+	public void testDistinctCountOfEntityWithCompositeId() {
+		// today we do not account for Dialects supportsTupleDistinctCounts() is false.  though really the only
+		// "option" there is to throw an error.
+		final HQLQueryPlan plan = sessionFactory().getQueryPlanCache().getHQLQueryPlan(
+				"select count(distinct o) from Order o",
+				false,
+				Collections.EMPTY_MAP
+		);
+		assertEquals( 1, plan.getTranslators().length );
+		final QueryTranslator translator = plan.getTranslators()[0];
+		final String generatedSql = translator.getSQLString();
+		System.out.println( "Generated SQL : " + generatedSql );
+
+		final int countExpressionListStart = generatedSql.indexOf( "count(" );
+		final int countExpressionListEnd = generatedSql.indexOf( ")", countExpressionListStart );
+		final String countExpressionFragment = generatedSql.substring( countExpressionListStart+6, countExpressionListEnd+1 );
+		assertTrue( countExpressionFragment.startsWith( "distinct" ) );
+		assertTrue( countExpressionFragment.contains( "," ) );
+	}
+
+	@Test
 	public void testQuery() {
 		Session s = openSession();
 		Transaction t = s.beginTransaction();
@@ -56,7 +103,7 @@ public class CompositeIdTest extends BaseCoreFunctionalTestCase {
 		t.commit();
 		s.close();
 	}
-	
+
 	@Test
 	public void testCompositeIds() {
 		Session s = openSession();

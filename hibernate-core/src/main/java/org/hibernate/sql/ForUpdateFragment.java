@@ -26,6 +26,7 @@ package org.hibernate.sql;
 
 import java.util.Iterator;
 import java.util.Map;
+
 import org.hibernate.LockMode;
 import org.hibernate.LockOptions;
 import org.hibernate.QueryException;
@@ -36,7 +37,7 @@ import org.hibernate.internal.util.StringHelper;
  * @author Gavin King
  */
 public class ForUpdateFragment {
-	private final StringBuffer aliases = new StringBuffer();
+	private final StringBuilder aliases = new StringBuilder();
 	private boolean isNowaitEnabled;
 	private final Dialect dialect;
 	private LockMode lockMode;

@@ -36,18 +36,8 @@ import javax.naming.StringRefAddr;
 import javax.transaction.Status;
 import javax.transaction.TransactionManager;
 import javax.transaction.UserTransaction;
-import junit.framework.TestCase;
+
 import org.enhydra.jdbc.standard.StandardXADataSource;
-import org.hibernate.Session;
-import org.hibernate.SessionFactory;
-import org.hibernate.cfg.Configuration;
-import org.hibernate.cfg.Environment;
-import org.hibernate.mapping.Collection;
-import org.hibernate.mapping.PersistentClass;
-import org.hibernate.service.ServiceRegistry;
-import org.hibernate.stat.Statistics;
-import org.hibernate.test.cache.infinispan.functional.Item;
-import org.hibernate.testing.ServiceRegistryBuilder;
 import org.infinispan.transaction.lookup.JBossStandaloneJTAManagerLookup;
 import org.infinispan.util.logging.Log;
 import org.infinispan.util.logging.LogFactory;
@@ -55,6 +45,25 @@ import org.jboss.util.naming.NonSerializableFactory;
 import org.jnp.interfaces.NamingContext;
 import org.jnp.server.Main;
 import org.jnp.server.NamingServer;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.AvailableSettings;
+import org.hibernate.cfg.Configuration;
+import org.hibernate.cfg.Environment;
+import org.hibernate.mapping.Collection;
+import org.hibernate.mapping.PersistentClass;
+import org.hibernate.service.ServiceRegistry;
+import org.hibernate.service.jta.platform.internal.JBossStandAloneJtaPlatform;
+import org.hibernate.stat.Statistics;
+import org.hibernate.test.cache.infinispan.functional.Item;
+import org.hibernate.testing.ServiceRegistryBuilder;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /**
  * This is an example test based on http://community.jboss.org/docs/DOC-14617 that shows how to interact with
@@ -66,28 +75,27 @@ import org.jnp.server.NamingServer;
  * @author Galder Zamarreño
  * @since 3.5
  */
-public class JBossStandaloneJtaExampleTest extends TestCase {
+public class JBossStandaloneJtaExampleTest {
    private static final Log log = LogFactory.getLog(JBossStandaloneJtaExampleTest.class);
    private static final JBossStandaloneJTAManagerLookup lookup = new JBossStandaloneJTAManagerLookup();
    Context ctx;
    Main jndiServer;
    private ServiceRegistry serviceRegistry;
 
-   @Override
-   protected void setUp() throws Exception {
-      super.setUp();
-	  serviceRegistry = ServiceRegistryBuilder.buildServiceRegistry( Environment.getProperties() );
+   @Before
+   public void setUp() throws Exception {
       jndiServer = startJndiServer();
       ctx = createJndiContext();
+      // Inject configuration to initialise transaction manager from config classloader
+      lookup.init(new org.infinispan.config.Configuration());
       bindTransactionManager();
       bindUserTransaction();
       bindDataSource();
    }
 
-   @Override
-   protected void tearDown() throws Exception {
+   @After
+   public void tearDown() throws Exception {
       try {
-         super.tearDown();
          ctx.close();
          jndiServer.stop();
 	  }
@@ -97,7 +105,7 @@ public class JBossStandaloneJtaExampleTest extends TestCase {
 		  }
 	  }
    }
-
+   @Test
    public void testPersistAndLoadUnderJta() throws Exception {
       Item item;
       SessionFactory sessionFactory = buildSessionFactory();
@@ -285,6 +293,11 @@ public class JBossStandaloneJtaExampleTest extends TestCase {
       cfg.setProperty(Environment.USE_SECOND_LEVEL_CACHE, "true");
       cfg.setProperty(Environment.USE_QUERY_CACHE, "true");
       cfg.setProperty(Environment.CACHE_REGION_FACTORY, "org.hibernate.cache.infinispan.InfinispanRegionFactory");
+
+      Properties envProps = Environment.getProperties();
+      envProps.put(AvailableSettings.JTA_PLATFORM, new JBossStandAloneJtaPlatform());
+      serviceRegistry = ServiceRegistryBuilder.buildServiceRegistry(envProps);
+
       String[] mappings = new String[]{"org/hibernate/test/cache/infinispan/functional/Item.hbm.xml"};
       for (String mapping : mappings) {
          cfg.addResource(mapping, Thread.currentThread().getContextClassLoader());

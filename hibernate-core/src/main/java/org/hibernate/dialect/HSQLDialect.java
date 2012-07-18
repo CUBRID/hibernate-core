@@ -27,9 +27,8 @@ import java.io.Serializable;
 import java.sql.SQLException;
 import java.sql.Types;
 
-import org.hibernate.exception.spi.TemplatedViolatedConstraintNameExtracter;
-import org.hibernate.exception.spi.ViolatedConstraintNameExtracter;
-import org.hibernate.internal.CoreMessageLogger;
+import org.jboss.logging.Logger;
+
 import org.hibernate.JDBCException;
 import org.hibernate.LockMode;
 import org.hibernate.StaleObjectStateException;
@@ -47,11 +46,13 @@ import org.hibernate.dialect.lock.PessimisticReadSelectLockingStrategy;
 import org.hibernate.dialect.lock.PessimisticWriteSelectLockingStrategy;
 import org.hibernate.dialect.lock.SelectLockingStrategy;
 import org.hibernate.engine.spi.SessionImplementor;
+import org.hibernate.exception.spi.TemplatedViolatedConstraintNameExtracter;
+import org.hibernate.exception.spi.ViolatedConstraintNameExtracter;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.internal.util.JdbcExceptionHelper;
 import org.hibernate.internal.util.ReflectHelper;
 import org.hibernate.persister.entity.Lockable;
 import org.hibernate.type.StandardBasicTypes;
-import org.jboss.logging.Logger;
 
 /**
  * An SQL dialect compatible with HSQLDB (HyperSQL).
@@ -142,6 +143,7 @@ public class HSQLDialect extends Dialect {
 		registerFunction( "reverse", new StandardSQLFunction( "reverse" ) );
 		registerFunction( "space", new StandardSQLFunction( "space", StandardBasicTypes.STRING ) );
 		registerFunction( "str", new SQLFunctionTemplate( StandardBasicTypes.STRING, "cast(?1 as varchar(256))" ) );
+		registerFunction( "to_char", new StandardSQLFunction( "to_char" ) );
 		registerFunction( "rawtohex", new StandardSQLFunction( "rawtohex" ) );
 		registerFunction( "hextoraw", new StandardSQLFunction( "hextoraw" ) );
 
@@ -255,7 +257,7 @@ public class HSQLDialect extends Dialect {
 
 	public String getLimitString(String sql, boolean hasOffset) {
 		if ( hsqldbVersion < 20 ) {
-			return new StringBuffer( sql.length() + 10 )
+			return new StringBuilder( sql.length() + 10 )
 					.append( sql )
 					.insert(
 							sql.toLowerCase().indexOf( "select" ) + 6,
@@ -264,7 +266,7 @@ public class HSQLDialect extends Dialect {
 					.toString();
 		}
 		else {
-			return new StringBuffer( sql.length() + 20 )
+			return new StringBuilder( sql.length() + 20 )
 					.append( sql )
 					.append( hasOffset ? " offset ? limit ?" : " limit ?" )
 					.toString();
@@ -636,7 +638,9 @@ public class HSQLDialect extends Dialect {
 
 		public void lock(Serializable id, Object version, Object object, int timeout, SessionImplementor session)
 				throws StaleObjectStateException, JDBCException {
-            if (getLockMode().greaterThan(LockMode.READ)) LOG.hsqldbSupportsOnlyReadCommittedIsolation();
+			if ( getLockMode().greaterThan( LockMode.READ ) ) {
+				LOG.hsqldbSupportsOnlyReadCommittedIsolation();
+			}
 			super.lock( id, version, object, timeout, session );
 		}
 	}

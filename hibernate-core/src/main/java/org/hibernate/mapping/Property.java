@@ -22,9 +22,11 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate.mapping;
+
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.StringTokenizer;
+
 import org.hibernate.EntityMode;
 import org.hibernate.MappingException;
 import org.hibernate.PropertyNotFoundException;
@@ -44,7 +46,6 @@ import org.hibernate.type.Type;
  * @author Gavin King
  */
 public class Property implements Serializable, MetaAttributable {
-
 	private String name;
 	private Value value;
 	private String cascade;
@@ -106,15 +107,41 @@ public class Property implements Serializable, MetaAttributable {
 
 	public CascadeStyle getCascadeStyle() throws MappingException {
 		Type type = value.getType();
-		if ( type.isComponentType() && !type.isAnyType() ) {
-			CompositeType actype = (CompositeType) type;
-			int length = actype.getSubtypes().length;
-			for ( int i=0; i<length; i++ ) {
-				if ( actype.getCascadeStyle(i)!=CascadeStyle.NONE ) return CascadeStyle.ALL;
-			}
-			return CascadeStyle.NONE;
+		if ( type.isComponentType() ) {
+			return getCompositeCascadeStyle( (CompositeType) type, cascade );
 		}
-		else if ( cascade==null || cascade.equals("none") ) {
+		else if ( type.isCollectionType() ) {
+			return getCollectionCascadeStyle( ( (Collection) value ).getElement().getType(), cascade );
+		}
+		else {
+			return getCascadeStyle( cascade );			
+		}
+	}
+
+	private static CascadeStyle getCompositeCascadeStyle(CompositeType compositeType, String cascade) {
+		if ( compositeType.isAnyType() ) {
+			return getCascadeStyle( cascade );
+		}
+		int length = compositeType.getSubtypes().length;
+		for ( int i=0; i<length; i++ ) {
+			if ( compositeType.getCascadeStyle(i) != CascadeStyle.NONE ) {
+				return CascadeStyle.ALL;
+			}
+		}
+		return getCascadeStyle( cascade );
+	}
+
+	private static CascadeStyle getCollectionCascadeStyle(Type elementType, String cascade) {
+		if ( elementType.isComponentType() ) {
+			return getCompositeCascadeStyle( (CompositeType) elementType, cascade );
+		}
+		else {
+			return getCascadeStyle( cascade );
+		}
+	}
+	
+	private static CascadeStyle getCascadeStyle(String cascade) {
+		if ( cascade==null || cascade.equals("none") ) {
 			return CascadeStyle.NONE;
 		}
 		else {
@@ -125,9 +152,9 @@ public class Property implements Serializable, MetaAttributable {
 				styles[i++] = CascadeStyle.getCascadeStyle( tokens.nextToken() );
 			}
 			return new CascadeStyle.MultipleCascadeStyle(styles);
-		}
+		}		
 	}
-
+	
 	public String getCascade() {
 		return cascade;
 	}
@@ -145,18 +172,14 @@ public class Property implements Serializable, MetaAttributable {
 	}
 
 	public boolean isUpdateable() {
-		// if the property mapping consists of all formulas, 
+		// if the property mapping consists of all formulas,
 		// make it non-updateable
-		final boolean[] columnUpdateability = value.getColumnUpdateability();
-		return updateable && ( 
-				//columnUpdateability.length==0 ||
-				!ArrayHelper.isAllFalse(columnUpdateability)
-			);
+		return updateable && !ArrayHelper.isAllFalse( value.getColumnUpdateability() );
 	}
 
 	public boolean isInsertable() {
 		// if the property mapping consists of all formulas, 
-		// make it insertable
+		// make it non-insertable
 		final boolean[] columnInsertability = value.getColumnInsertability();
 		return insertable && (
 				columnInsertability.length==0 ||
@@ -294,7 +317,7 @@ public class Property implements Serializable, MetaAttributable {
 
 	// todo : remove
 	public Getter getGetter(Class clazz) throws PropertyNotFoundException, MappingException {
-		return getPropertyAccessor(clazz).getGetter(clazz, name);
+		return getPropertyAccessor(clazz).getGetter( clazz, name );
 	}
 
 	// todo : remove
@@ -314,4 +337,5 @@ public class Property implements Serializable, MetaAttributable {
 	public void setNaturalIdentifier(boolean naturalIdentifier) {
 		this.naturalIdentifier = naturalIdentifier;
 	}
+
 }

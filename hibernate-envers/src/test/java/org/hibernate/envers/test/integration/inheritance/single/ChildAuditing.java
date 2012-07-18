@@ -23,18 +23,19 @@
  */
 package org.hibernate.envers.test.integration.inheritance.single;
 
-import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.test.AbstractEntityTest;
-import org.hibernate.envers.test.Priority;
+import java.util.Arrays;
+import javax.persistence.EntityManager;
+
 import org.junit.Test;
 
-import javax.persistence.EntityManager;
-import java.util.Arrays;
+import org.hibernate.ejb.Ejb3Configuration;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
+import org.hibernate.envers.test.Priority;
 
 /**
  * @author Adam Warski (adam at warski dot org)
  */
-public class ChildAuditing extends AbstractEntityTest {
+public class ChildAuditing extends BaseEnversJPAFunctionalTestCase {
     private Integer id1;
 
     public void configure(Ejb3Configuration cfg) {
@@ -58,7 +59,7 @@ public class ChildAuditing extends AbstractEntityTest {
         em.getTransaction().begin();
         ce = em.find(ChildEntity.class, id1);
         ce.setData("y");
-        ce.setNumber(2l);
+        ce.setNumVal(2l);
         em.getTransaction().commit();
     }
 

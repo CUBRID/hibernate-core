@@ -23,22 +23,23 @@
  */
 package org.hibernate.envers.test.integration.proxy;
 
+import javax.persistence.EntityManager;
+
+import org.junit.Test;
+
 import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.test.AbstractEntityTest;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
 import org.hibernate.envers.test.Priority;
 import org.hibernate.envers.test.entities.UnversionedStrTestEntity;
 import org.hibernate.envers.test.entities.manytoone.unidirectional.TargetNotAuditedEntity;
 import org.hibernate.proxy.HibernateProxy;
 import org.hibernate.proxy.LazyInitializer;
-import org.junit.Test;
-
-import javax.persistence.EntityManager;
 
 
 /**
  * @author Eugene Goroschenya
  */
-public class ProxyIdentifier extends AbstractEntityTest {
+public class ProxyIdentifier extends BaseEnversJPAFunctionalTestCase {
     private TargetNotAuditedEntity tnae1;
     private UnversionedStrTestEntity uste1;
 

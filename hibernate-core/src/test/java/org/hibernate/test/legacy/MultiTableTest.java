@@ -11,6 +11,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.junit.Test;
+
 import org.hibernate.Criteria;
 import org.hibernate.FetchMode;
 import org.hibernate.LockMode;
@@ -20,14 +22,16 @@ import org.hibernate.criterion.Restrictions;
 import org.hibernate.dialect.MySQLDialect;
 import org.hibernate.jdbc.Work;
 
-import org.junit.Test;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 
 public class MultiTableTest extends LegacyTestCase {
+	@Override
+	protected boolean isCleanupTestDataRequired() {
+		return true;
+	}
 	@Override
 	public String[] getMappings() {
 		return new String[] { "legacy/Multi.hbm.xml", "legacy/MultiExtends.hbm.xml" };

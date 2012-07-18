@@ -25,19 +25,20 @@
 package org.hibernate.hql.internal.ast.tree;
 import java.util.Arrays;
 
-import org.hibernate.hql.internal.CollectionProperties;
-import org.hibernate.internal.CoreMessageLogger;
+import antlr.SemanticException;
+import antlr.collections.AST;
+import org.jboss.logging.Logger;
+
 import org.hibernate.dialect.function.SQLFunction;
+import org.hibernate.hql.internal.CollectionProperties;
 import org.hibernate.hql.internal.antlr.SqlTokenTypes;
 import org.hibernate.hql.internal.ast.TypeDiscriminatorMetadata;
 import org.hibernate.hql.internal.ast.util.ASTUtil;
 import org.hibernate.hql.internal.ast.util.ColumnHelper;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.persister.collection.CollectionPropertyNames;
 import org.hibernate.persister.collection.QueryableCollection;
 import org.hibernate.type.Type;
-import org.jboss.logging.Logger;
-import antlr.SemanticException;
-import antlr.collections.AST;
 
 /**
  * Represents a method call.
@@ -143,7 +144,7 @@ public class MethodNode extends AbstractSelectExpression implements FunctionNode
 
 		SqlNode expr = ( SqlNode ) path;
 		Type type = expr.getDataType();
-        LOG.debugf("collectionProperty() :  name=%s type=%s", name, type);
+		LOG.debugf( "collectionProperty() :  name=%s type=%s", name, type );
 
 		resolveCollectionProperty( expr );
 	}
@@ -205,7 +206,7 @@ public class MethodNode extends AbstractSelectExpression implements FunctionNode
 		QueryableCollection queryableCollection = collectionFromElement.getQueryableCollection();
 
 		String path = collectionNode.getPath() + "[]." + propertyName;
-        LOG.debugf("Creating elements for %s", path);
+		LOG.debugf( "Creating elements for %s", path );
 
 		fromElement = collectionFromElement;
 		if ( !collectionFromElement.isCollectionOfValuesOrComponents() ) {

@@ -26,7 +26,8 @@ package org.hibernate.metamodel.source.hbm;
 import java.util.List;
 import java.util.Map;
 
-import org.hibernate.internal.util.Value;
+import org.hibernate.internal.jaxb.mapping.hbm.JaxbHibernateMapping;
+import org.hibernate.internal.util.ValueHolder;
 import org.hibernate.mapping.PropertyGeneration;
 import org.hibernate.metamodel.source.LocalBindingContext;
 import org.hibernate.metamodel.source.MappingException;
@@ -35,7 +36,6 @@ import org.hibernate.metamodel.source.binder.MetaAttributeSource;
 import org.hibernate.metamodel.source.binder.RelationalValueSource;
 import org.hibernate.metamodel.source.binder.SingularAttributeNature;
 import org.hibernate.metamodel.source.binder.SingularAttributeSource;
-import org.hibernate.metamodel.source.hbm.jaxb.mapping.XMLHibernateMapping;
 
 /**
  * Implementation for {@code <version/>} mappings
@@ -43,12 +43,12 @@ import org.hibernate.metamodel.source.hbm.jaxb.mapping.XMLHibernateMapping;
  * @author Steve Ebersole
  */
 class VersionAttributeSourceImpl implements SingularAttributeSource {
-	private final XMLHibernateMapping.XMLClass.XMLVersion versionElement;
+	private final JaxbHibernateMapping.JaxbClass.JaxbVersion versionElement;
 	private final LocalBindingContext bindingContext;
 	private final List<RelationalValueSource> valueSources;
 
 	VersionAttributeSourceImpl(
-			final XMLHibernateMapping.XMLClass.XMLVersion versionElement,
+			final JaxbHibernateMapping.JaxbClass.JaxbVersion versionElement,
 			LocalBindingContext bindingContext) {
 		this.versionElement = versionElement;
 		this.bindingContext = bindingContext;
@@ -126,8 +126,8 @@ class VersionAttributeSourceImpl implements SingularAttributeSource {
 		return true;
 	}
 
-	private Value<PropertyGeneration> propertyGenerationValue = new Value<PropertyGeneration>(
-			new Value.DeferredInitializer<PropertyGeneration>() {
+	private ValueHolder<PropertyGeneration> propertyGenerationValue = new ValueHolder<PropertyGeneration>(
+			new ValueHolder.DeferredInitializer<PropertyGeneration>() {
 				@Override
 				public PropertyGeneration initialize() {
 					final PropertyGeneration propertyGeneration = versionElement.getGenerated() == null

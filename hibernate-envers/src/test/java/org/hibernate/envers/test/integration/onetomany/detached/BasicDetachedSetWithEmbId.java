@@ -23,23 +23,24 @@
  */
 package org.hibernate.envers.test.integration.onetomany.detached;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import javax.persistence.EntityManager;
+
+import org.junit.Test;
+
 import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.test.AbstractEntityTest;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
 import org.hibernate.envers.test.Priority;
 import org.hibernate.envers.test.entities.ids.EmbId;
 import org.hibernate.envers.test.entities.ids.EmbIdTestEntity;
 import org.hibernate.envers.test.entities.onetomany.detached.ids.SetRefCollEntityEmbId;
 import org.hibernate.envers.test.tools.TestTools;
-import org.junit.Test;
-
-import javax.persistence.EntityManager;
-import java.util.Arrays;
-import java.util.HashSet;
 
 /**
  * @author Adam Warski (adam at warski dot org)
  */
-public class BasicDetachedSetWithEmbId extends AbstractEntityTest {
+public class BasicDetachedSetWithEmbId extends BaseEnversJPAFunctionalTestCase {
     private EmbId str1_id;
     private EmbId str2_id;
 

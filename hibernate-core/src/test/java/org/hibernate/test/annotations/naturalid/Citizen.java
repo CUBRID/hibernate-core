@@ -4,12 +4,15 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
+
 import org.hibernate.annotations.NaturalId;
+import org.hibernate.annotations.NaturalIdCache;
 
 /**
  * @author Emmanuel Bernard
  */
 @Entity
+@NaturalIdCache
 public class Citizen {
 	@Id
 	@GeneratedValue

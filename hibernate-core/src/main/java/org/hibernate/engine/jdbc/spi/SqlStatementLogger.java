@@ -23,11 +23,11 @@
  */
 package org.hibernate.engine.jdbc.spi;
 
-import org.hibernate.internal.CoreMessageLogger;
+import org.jboss.logging.Logger;
+
 import org.hibernate.engine.jdbc.internal.FormatStyle;
 import org.hibernate.engine.jdbc.internal.Formatter;
-
-import org.jboss.logging.Logger;
+import org.hibernate.internal.CoreMessageLogger;
 
 /**
  * Centralize logging for SQL statements.
@@ -36,7 +36,7 @@ import org.jboss.logging.Logger;
  */
 public class SqlStatementLogger {
 
-    private static final CoreMessageLogger LOG = Logger.getMessageLogger(CoreMessageLogger.class, SqlStatementLogger.class.getName());
+    private static final CoreMessageLogger LOG = Logger.getMessageLogger(CoreMessageLogger.class, "org.hibernate.SQL");
 
 	private boolean logToStdout;
 	private boolean format;
@@ -97,11 +97,11 @@ public class SqlStatementLogger {
 
 	public void logStatement(String statement, Formatter formatter) {
 		if ( format ) {
-            if (logToStdout || LOG.isDebugEnabled()) {
+			if ( logToStdout || LOG.isDebugEnabled() ) {
 				statement = formatter.format( statement );
 			}
 		}
-        LOG.debug( statement );
+		LOG.debug( statement );
 		if ( logToStdout ) {
 			System.out.println( "Hibernate: " + statement );
 		}

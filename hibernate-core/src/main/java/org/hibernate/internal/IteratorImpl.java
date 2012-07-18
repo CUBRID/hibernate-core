@@ -27,6 +27,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.NoSuchElementException;
+
+import org.jboss.logging.Logger;
+
 import org.hibernate.HibernateException;
 import org.hibernate.JDBCException;
 import org.hibernate.engine.HibernateIterator;
@@ -34,7 +37,6 @@ import org.hibernate.event.spi.EventSource;
 import org.hibernate.hql.internal.HolderInstantiator;
 import org.hibernate.type.EntityType;
 import org.hibernate.type.Type;
-import org.jboss.logging.Logger;
 
 /**
  * An implementation of <tt>java.util.Iterator</tt> that is
@@ -82,7 +84,7 @@ public final class IteratorImpl implements HibernateIterator {
 	public void close() throws JDBCException {
 		if (ps!=null) {
 			try {
-                LOG.debugf("Closing iterator");
+				LOG.debug("Closing iterator");
 				ps.close();
 				ps = null;
 				rs = null;
@@ -108,12 +110,12 @@ public final class IteratorImpl implements HibernateIterator {
 	}
 
 	private void postNext() throws SQLException {
-        LOG.debugf("Attempting to retrieve next results");
+		LOG.debug("Attempting to retrieve next results");
 		this.hasNext = rs.next();
 		if (!hasNext) {
-            LOG.debugf("Exhausted results");
+			LOG.debug("Exhausted results");
 			close();
-        } else LOG.debugf("Retrieved next results");
+		} else LOG.debug("Retrieved next results");
 	}
 
 	public boolean hasNext() {
@@ -127,7 +129,7 @@ public final class IteratorImpl implements HibernateIterator {
 		try {
 			boolean isHolder = holderInstantiator.isRequired();
 
-            LOG.debugf("Assembling results");
+			LOG.debugf( "Assembling results" );
 			if ( single && !isHolder ) {
 				currentResult = types[0].nullSafeGet( rs, names[0], session, null );
 			}
@@ -146,7 +148,7 @@ public final class IteratorImpl implements HibernateIterator {
 			}
 
 			postNext();
-            LOG.debugf("Returning current results");
+			LOG.debugf( "Returning current results" );
 			return currentResult;
 		}
 		catch (SQLException sqle) {

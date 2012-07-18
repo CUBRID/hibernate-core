@@ -23,12 +23,16 @@
  */
 package org.hibernate.test.criteria;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashSet;
-import java.util.HashMap;
+
+import org.junit.Test;
 
 import org.hibernate.Criteria;
 import org.hibernate.FetchMode;
@@ -49,17 +53,21 @@ import org.hibernate.criterion.Projections;
 import org.hibernate.criterion.Property;
 import org.hibernate.criterion.Restrictions;
 import org.hibernate.criterion.Subqueries;
+import org.hibernate.dialect.Oracle8iDialect;
+import org.hibernate.dialect.SQLServerDialect;
+import org.hibernate.dialect.SybaseASE15Dialect;
 import org.hibernate.exception.SQLGrammarException;
 import org.hibernate.internal.util.SerializationHelper;
+import org.hibernate.test.hql.Animal;
+import org.hibernate.test.hql.Reptile;
+import org.hibernate.testing.DialectChecks;
+import org.hibernate.testing.RequiresDialectFeature;
+import org.hibernate.testing.SkipForDialect;
+import org.hibernate.testing.TestForIssue;
+import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 import org.hibernate.transform.Transformers;
 import org.hibernate.type.StandardBasicTypes;
 import org.hibernate.type.Type;
-
-import org.junit.Test;
-
-import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
-import org.hibernate.test.hql.Animal;
-import org.hibernate.test.hql.Reptile;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -70,11 +78,15 @@ import static org.junit.Assert.fail;
 
 /**
  * @author Gavin King
+ * @author Lukasz Antoniak (lukasz dot antoniak at gmail dot com)
  */
+@RequiresDialectFeature(DialectChecks.SupportsSequences.class)
 public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 	@Override
 	public String[] getMappings() {
-		return new String[] { "criteria/Enrolment.hbm.xml","criteria/Foo.hbm.xml", "hql/Animal.hbm.xml" };
+		return new String[] {
+				"criteria/Enrolment.hbm.xml", "criteria/Foo.hbm.xml", "hql/Animal.hbm.xml", "criteria/Person.hbm.xml"
+		};
 	}
 
 	@Override
@@ -84,6 +96,37 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 		cfg.setProperty( Environment.CACHE_REGION_PREFIX, "criteriaquerytest" );
 		cfg.setProperty( Environment.USE_SECOND_LEVEL_CACHE, "true" );
 		cfg.setProperty( Environment.GENERATE_STATISTICS, "true" );
+	}
+
+	@Test
+	@TestForIssue( jiraKey = "HHH-7209" )
+	public void testVarargJunctionSyntax() {
+		Session session = openSession();
+		session.beginTransaction();
+		session.createCriteria( Course.class )
+				.add(
+						Restrictions.and(
+								Property.forName( "description" ).like( "Hibernate%" ),
+								Property.forName( "description" ).like( "%ORM%" )
+						)
+				)
+				.list();
+
+		session.createCriteria( Course.class )
+				.add(
+						Restrictions.and(
+								Property.forName( "description" ).like( "Hibernate%" ),
+								Restrictions.or(
+										Property.forName( "description" ).like( "%ORM%" ),
+										Property.forName( "description" ).like( "%Search%" )
+								)
+
+						)
+				)
+				.list();
+
+		session.getTransaction().commit();
+		session.close();
 	}
 
 	@Test
@@ -145,8 +188,9 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 		t.commit();
 		session.close();
 	}
-	
+
 	@Test
+    @SkipForDialect( value = SybaseASE15Dialect.class, strictMatching = true, jiraKey = "HHH-3032", comment = "I was told this is fixed in Sybase ASE 15.7")
 	public void testSubselect() {
 		Session session = openSession();
 		Transaction t = session.beginTransaction();
@@ -214,7 +258,11 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 
 		dc4.getExecutableCriteria( session ).list();
 
-		dc4.getExecutableCriteria( session ).addOrder( Order.asc( "stname" ) ).list();
+		// SQL Server and Oracle doesn't normally support ORDER BY in subqueries...
+		if ( !( getDialect() instanceof SQLServerDialect ) &&
+				! ( getDialect() instanceof Oracle8iDialect ) ) {
+			dc4.getExecutableCriteria(session).addOrder(Order.asc("stname")).list();
+		}
 
 		session.createCriteria(Enrolment.class, "e")
 			.add( Subqueries.eq("Gavin King", dc4) )
@@ -228,6 +276,7 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 	}
 
 	@Test
+    @SkipForDialect( value = SybaseASE15Dialect.class, strictMatching = true, jiraKey = "HHH-3032", comment = "I was told this is fixed in Sybase ASE 15.7")
 	public void testSubselectWithComponent() {
 		Session session = openSession();
 		Transaction t = session.beginTransaction();
@@ -1051,7 +1100,7 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 		result = s.createCriteria( Student.class )
 			.setProjection( Projections.count( "cityState.city" ) )
 			.uniqueResult();
-		assertEquals( 2, ( ( Long ) result ).longValue() );
+		assertEquals( 2, ((Long) result).longValue() );
 
 		result = s.createCriteria( Student.class )
 			.setProjection( Projections.countDistinct( "cityState.city" ) )
@@ -1408,8 +1457,8 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 		Transaction t = s.beginTransaction();
 
 		Course course = new Course();
-		course.setCourseCode("HIB");
-		course.setDescription("Hibernate Training");
+		course.setCourseCode( "HIB" );
+		course.setDescription( "Hibernate Training" );
 		course.getCourseMeetings().add( new CourseMeeting( course, "Monday", 1, "1313 Mockingbird Lane" ) );
 		s.save(course);
 		s.flush();
@@ -1431,7 +1480,7 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 		s.save( gaith );
 		s.flush();
 
-		List cityStates = ( List ) s.createCriteria( Student.class).setProjection( Projections.property( "cityState" )).list();
+		List cityStates = ( List ) s.createCriteria( Student.class).setProjection( Projections.property( "cityState" ) ).list();
 		t.rollback();
 		s.close();
 	}
@@ -1564,8 +1613,8 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 						.list();
 		assertEquals( 3, result.size() );
 		assertNotNull( result.get(0) );
-		assertNotNull( result.get(1) );
-		assertNotNull( result.get(2) );
+		assertNotNull( result.get( 1 ) );
+		assertNotNull( result.get( 2 ) );
 
 		result = session.createCriteria( Student.class )
 				.setFetchMode( "preferredCourse", FetchMode.JOIN )
@@ -1575,7 +1624,7 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 		assertEquals( 3, result.size() );
 		assertNotNull( result.get(0) );
 		assertNotNull( result.get(1) );
-		assertNotNull( result.get(2) );
+		assertNotNull( result.get( 2 ) );
 
 		session.delete(gavin);
 		session.delete(leonardo);
@@ -1585,7 +1634,7 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 		t.commit();
 		session.close();
 	}
-	
+
 	@Test
 	public void testAliasJoinCriterion() {
 		Session session = openSession();
@@ -1681,7 +1730,7 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 		session.close();
 	}
 
-        @Test
+    @Test
 	public void testCriteriaCollectionOfValue() {
 		Session session = openSession();
 		Transaction t = session.beginTransaction();
@@ -1706,13 +1755,95 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 		assertEquals( 2, course.getCrossListedAs().size() );
 
 		session.delete(course);
-		
+
 		t.commit();
 		session.close();
-		
+
 	}
 
-        @Test
+	@Test
+	@TestForIssue( jiraKey = "HHH-6766" )
+	public void testMultiplePropertiesSubquery() {
+		Session session = openSession();
+		Transaction tx = session.beginTransaction();
+
+		Man lukasz = new Man();
+		lukasz.setName( "Lukasz" );
+		lukasz.setHeight( 170 );
+		lukasz.setWeight( 60 );
+		session.persist( lukasz );
+
+		Man robert = new Man();
+		robert.setName( "Robert" );
+		robert.setHeight( 170 );
+		robert.setWeight( 78 );
+		session.persist( robert );
+
+		Woman kinga = new Woman();
+		kinga.setName( "Kinga" );
+		kinga.setHeight( 170 );
+		kinga.setWeight( 60 );
+		session.persist( kinga );
+
+		tx.commit();
+		session.close();
+
+		session = openSession();
+		tx = session.beginTransaction();
+
+		DetachedCriteria sizeQuery = DetachedCriteria.forClass( Man.class ).setProjection(
+				Projections.projectionList().add( Projections.property( "weight" ) )
+						                    .add( Projections.property( "height" ) ) )
+				.add( Restrictions.eq( "name", "Lukasz" )
+		);
+		List result;
+		if ( getDialect().supportsRowValueConstructorSyntax() ) {
+			result = session.createCriteria( Woman.class )
+					.add( Subqueries.propertiesEq( new String[] { "weight", "height" }, sizeQuery ) )
+					.list();
+			assertEquals( 1, result.size() );
+			assertEquals( kinga, result.get( 0 ) );
+		}
+		if ( getDialect().supportsRowValueConstructorSyntaxInInList() ) {
+			result = session.createCriteria( Woman.class )
+					.add( Subqueries.propertiesIn( new String[] { "weight", "height" }, sizeQuery ) )
+					.list();
+			assertEquals( 1, result.size() );
+			assertEquals( kinga, result.get( 0 ) );
+		}
+		
+		tx.commit();
+		session.close();
+
+		session = openSession();
+		tx = session.beginTransaction();
+					sizeQuery = DetachedCriteria.forClass( Man.class ).setProjection(
+					Projections.projectionList().add( Projections.property( "weight" ) )
+							.add( Projections.property( "height" ) )
+			)
+					.add(
+							Restrictions.ne( "name", "Lukasz" )
+					);
+		if ( getDialect().supportsRowValueConstructorSyntax() ) {
+			result = session.createCriteria( Woman.class )
+					.add( Subqueries.propertiesNotEq( new String[] { "weight", "height" }, sizeQuery ) )
+					.list();
+			assertEquals( 1, result.size() );
+			assertEquals( kinga, result.get( 0 ) );
+		}
+		if (getDialect().supportsRowValueConstructorSyntaxInInList()) {
+			result = session.createCriteria( Woman.class )
+							.add( Subqueries.propertiesNotIn( new String[] { "weight", "height" }, sizeQuery ) )
+							.list();
+			assertEquals( 1, result.size() );
+			assertEquals( kinga, result.get( 0 ) );
+		}
+
+		tx.commit();
+		session.close();
+	}
+
+    @Test
 	public void testCriteriaCollectionOfComponent() {
 		Session session = openSession();
 		Transaction t = session.beginTransaction();
@@ -1728,14 +1859,14 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 		addr.setState("NY");
 		addr.setZip("10016");
 		addresses.put("HOME", addr);
-		
+
 		addr = new StudentAddress();
 		addr.setLine1("202 Spring St.");
 		addr.setCity("Springfield");
 		addr.setState("MA");
 		addr.setZip("99999");
 		addresses.put("SCHOOL", addr);
-	       
+
 		gavin.setAddresses(addresses);
 		session.persist(gavin);
 
@@ -1770,10 +1901,116 @@ public class CriteriaQueryTest extends BaseCoreFunctionalTestCase {
 
 		session.delete(gavin);
 		session.delete(xam);
+
+		t.commit();
+		session.close();
+
+	}
+	
+	@Test
+	@TestForIssue(jiraKey = "HHH-7194")
+	public void testNestedCorrelatedSubquery() throws Exception {
+		Session session = openSession();
+		Transaction t = session.beginTransaction();
+		
+		Course course = new Course();
+		course.setCourseCode("HIB");
+		course.setDescription("Hibernate Training");
+		session.persist(course);
+
+		Student gavin = new Student();
+		gavin.setName("Gavin King");
+		gavin.setStudentNumber(232);
+		gavin.setPreferredCourse(course);
+		
+		Enrolment enrolment = new Enrolment();
+		enrolment.setCourse( course );
+		enrolment.setCourseCode( course.getCourseCode() );
+		enrolment.setSemester( ( short ) 1 );
+		enrolment.setYear( ( short ) 1999 );
+		enrolment.setStudent( gavin );
+		enrolment.setStudentNumber( gavin.getStudentNumber() );
+
+		session.persist(course);
+		session.persist(gavin);
+		session.persist(enrolment);
+		
+		session.flush();
+		session.clear();
+		
+		//execute a nested subquery
+		DetachedCriteria mainCriteria = DetachedCriteria.forClass(Student.class, "student");
+		
+		DetachedCriteria nestedSubQuery = DetachedCriteria.forClass( Enrolment.class, "maxStudentEnrolment" );
+		nestedSubQuery.add(Restrictions.eqProperty("student.preferredCourse", "maxStudentEnrolment.course"));
+		nestedSubQuery.setProjection(Projections.max("maxStudentEnrolment.year"));
+
+		DetachedCriteria subQuery = DetachedCriteria.forClass( Enrolment.class, "enrolment" );
+		subQuery.add(Subqueries.propertyEq("enrolment.year", nestedSubQuery));
+		subQuery.setProjection(Projections.property("student"));
+		
+		mainCriteria.add(Subqueries.exists(subQuery));
+
+		//query should complete and return gavin in the list
+		List results = mainCriteria.getExecutableCriteria(session).list();
+		assertEquals(1, results.size());
+		assertEquals(gavin.getStudentNumber(), ((Student) results.get(0)).getStudentNumber());
+		
+		t.rollback();
+		session.close();
+	}
+
+        @Test
+	public void testCriteriaFetchMode() {
+		Session session = openSession();
+		Transaction t = session.beginTransaction();
+
+		Student gavin = new Student();
+		gavin.setName("Gavin King");
+		gavin.setStudentNumber(232);
+		
+		Country gb = new Country("GB", "United Kingdom");
+		Country fr = new Country("FR", "France");
+		session.persist(gb);
+		session.persist(fr);
+
+		List studyAbroads = new ArrayList();
+		StudyAbroad sa1 = new StudyAbroad(gb, new Date());
+		StudyAbroad sa2 = new StudyAbroad(fr, new Date(sa1.getDate().getTime()+1));
+		studyAbroads.add(sa1);
+		studyAbroads.add(sa2);
+		gavin.setStudyAbroads(studyAbroads);
+		
+		session.persist(gavin);
+
+		session.flush();
+		session.clear();
+		
+		List results = session.createCriteria(Student.class)
+		    .setFetchMode("studyAbroads", FetchMode.JOIN)
+		    .setFetchMode("studyAbroads.country", FetchMode.JOIN)
+		    .list();
+
+		
+		assertEquals(results.size(), 2);
+		Student st = (Student)results.get(0);
+		
+		assertNotNull(st.getStudyAbroads());
+		assertTrue(Hibernate.isInitialized(st.getStudyAbroads()));
+		assertEquals(st.getStudyAbroads().size(), 2);
+		Country c1 = ((StudyAbroad)st.getStudyAbroads().get(0)).getCountry();
+		Country c2 = ((StudyAbroad)st.getStudyAbroads().get(1)).getCountry();
+		assertTrue( Hibernate.isInitialized( c1 ));
+		assertEquals(c1.getName(), "United Kingdom");
+
+		session.delete(st);
+		session.delete(c1);
+		session.delete(c2);
 		
 		t.commit();
 		session.close();
 		
 	}
+
 }
 

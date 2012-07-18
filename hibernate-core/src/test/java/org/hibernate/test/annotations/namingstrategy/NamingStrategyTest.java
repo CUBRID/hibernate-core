@@ -6,6 +6,9 @@ import java.io.StringWriter;
 import java.util.Iterator;
 
 import org.jboss.logging.Logger;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import org.hibernate.cfg.AnnotationConfiguration;
 import org.hibernate.cfg.EJB3NamingStrategy;
@@ -13,31 +16,32 @@ import org.hibernate.cfg.Environment;
 import org.hibernate.cfg.Mappings;
 import org.hibernate.mapping.Table;
 import org.hibernate.service.ServiceRegistry;
-
-import junit.framework.TestCase;
-
 import org.hibernate.testing.ServiceRegistryBuilder;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Test harness for ANN-716.
  *
  * @author Hardy Ferentschik
  */
-public class NamingStrategyTest extends TestCase {
+public class NamingStrategyTest {
 	private static final Logger log = Logger.getLogger( NamingStrategyTest.class );
 
 	private ServiceRegistry serviceRegistry;
 
-	@Override
-    protected void setUp() {
+	@Before
+    public void setUp() {
 		serviceRegistry = ServiceRegistryBuilder.buildServiceRegistry( Environment.getProperties() );
 	}
 
-	@Override
-    protected void tearDown() {
+	@After
+    public void tearDown() {
         if (serviceRegistry != null) ServiceRegistryBuilder.destroy(serviceRegistry);
 	}
-
+    @Test
 	public void testWithCustomNamingStrategy() throws Exception {
 		try {
 			AnnotationConfiguration config = new AnnotationConfiguration();
@@ -53,7 +57,7 @@ public class NamingStrategyTest extends TestCase {
 			fail(e.getMessage());
 		}
 	}
-
+    @Test
 	public void testWithEJB3NamingStrategy() throws Exception {
 		try {
 			AnnotationConfiguration config = new AnnotationConfiguration();
@@ -82,7 +86,7 @@ public class NamingStrategyTest extends TestCase {
 			fail(e.getMessage());
 		}
 	}
-
+    @Test
 	public void testWithoutCustomNamingStrategy() throws Exception {
 		try {
 			AnnotationConfiguration config = new AnnotationConfiguration();

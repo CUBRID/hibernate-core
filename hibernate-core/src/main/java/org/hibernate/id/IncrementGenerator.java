@@ -28,16 +28,18 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Properties;
+
+import org.jboss.logging.Logger;
+
 import org.hibernate.HibernateException;
-import org.hibernate.engine.spi.SessionImplementor;
-import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.MappingException;
 import org.hibernate.cfg.ObjectNameNormalizer;
 import org.hibernate.dialect.Dialect;
+import org.hibernate.engine.spi.SessionImplementor;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.internal.util.StringHelper;
 import org.hibernate.mapping.Table;
 import org.hibernate.type.Type;
-import org.jboss.logging.Logger;
 
 /**
  * <b>increment</b><br>
@@ -97,7 +99,7 @@ public class IncrementGenerator implements IdentifierGenerator, Configurable {
 				)
 		);
 
-		StringBuffer buf = new StringBuffer();
+		StringBuilder buf = new StringBuilder();
 		for ( int i=0; i < tables.length; i++ ) {
 			final String tableName = dialect.quote( normalizer.normalizeIdentifierQuoting( tables[i] ) );
 			if ( tables.length > 1 ) {
@@ -119,7 +121,7 @@ public class IncrementGenerator implements IdentifierGenerator, Configurable {
 	private void initializePreviousValueHolder(SessionImplementor session) {
 		previousValueHolder = IdentifierGeneratorHelper.getIntegralDataTypeHolder( returnClass );
 
-        LOG.debugf("Fetching initial value: %s", sql);
+		LOG.debugf( "Fetching initial value: %s", sql );
 		try {
 			PreparedStatement st = session.getTransactionCoordinator().getJdbcCoordinator().getStatementPreparer().prepareStatement( sql );
 			try {
@@ -128,7 +130,9 @@ public class IncrementGenerator implements IdentifierGenerator, Configurable {
                     if (rs.next()) previousValueHolder.initialize(rs, 0L).increment();
                     else previousValueHolder.initialize(1L);
 					sql = null;
-                    LOG.debugf("First free id: %s", previousValueHolder.makeValue());
+					if ( LOG.isDebugEnabled() ) {
+						LOG.debugf( "First free id: %s", previousValueHolder.makeValue() );
+					}
 				}
 				finally {
 					rs.close();

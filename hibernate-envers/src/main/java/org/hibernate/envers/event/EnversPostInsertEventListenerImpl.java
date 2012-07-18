@@ -32,7 +32,7 @@ import org.hibernate.event.spi.PostInsertEventListener;
 
 /**
  * @author Adam Warski (adam at warski dot org)
- * @author Hern�n Chanfreau
+ * @author HernпїЅn Chanfreau
  * @author Steve Ebersole
  */
 public class EnversPostInsertEventListenerImpl extends BaseEnversEventListener implements PostInsertEventListener {
@@ -44,6 +44,8 @@ public class EnversPostInsertEventListenerImpl extends BaseEnversEventListener i
         String entityName = event.getPersister().getEntityName();
 
         if ( getAuditConfiguration().getEntCfg().isVersioned( entityName ) ) {
+            checkIfTransactionInProgress(event.getSession());
+
             AuditProcess auditProcess = getAuditConfiguration().getSyncManager().get(event.getSession());
 
             AuditWorkUnit workUnit = new AddWorkUnit(

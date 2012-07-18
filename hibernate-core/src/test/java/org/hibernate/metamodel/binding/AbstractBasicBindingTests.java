@@ -28,21 +28,20 @@ import java.util.Iterator;
 import java.util.Set;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import org.hibernate.metamodel.MetadataSources;
-import org.hibernate.metamodel.source.MetadataImplementor;
-import org.hibernate.metamodel.source.internal.MetadataImpl;
 import org.hibernate.metamodel.domain.BasicType;
 import org.hibernate.metamodel.domain.SingularAttribute;
 import org.hibernate.metamodel.relational.Column;
 import org.hibernate.metamodel.relational.Datatype;
 import org.hibernate.metamodel.relational.SimpleValue;
-import org.hibernate.service.BasicServiceRegistry;
+import org.hibernate.metamodel.source.MetadataImplementor;
+import org.hibernate.metamodel.source.internal.MetadataImpl;
+import org.hibernate.service.ServiceRegistry;
 import org.hibernate.service.ServiceRegistryBuilder;
-import org.hibernate.service.internal.BasicServiceRegistryImpl;
+import org.hibernate.service.internal.StandardServiceRegistryImpl;
 import org.hibernate.testing.junit4.BaseUnitTestCase;
 import org.hibernate.type.LongType;
 import org.hibernate.type.StringType;
@@ -61,11 +60,11 @@ import static org.junit.Assert.assertTrue;
  */
 public abstract class AbstractBasicBindingTests extends BaseUnitTestCase {
 
-	private BasicServiceRegistryImpl serviceRegistry;
+	private StandardServiceRegistryImpl serviceRegistry;
 
 	@Before
 	public void setUp() {
-		serviceRegistry = (BasicServiceRegistryImpl) new ServiceRegistryBuilder().buildServiceRegistry();
+		serviceRegistry = (StandardServiceRegistryImpl) new ServiceRegistryBuilder().buildServiceRegistry();
 	}
 
 	@After
@@ -73,7 +72,7 @@ public abstract class AbstractBasicBindingTests extends BaseUnitTestCase {
 		serviceRegistry.destroy();
 	}
 
-	protected BasicServiceRegistry basicServiceRegistry() {
+	protected ServiceRegistry basicServiceRegistry() {
 		return serviceRegistry;
 	}
 

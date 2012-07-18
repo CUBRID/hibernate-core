@@ -23,16 +23,15 @@
  */
 package org.hibernate.metamodel.binding;
 
-import org.hibernate.metamodel.MetadataSourceProcessingOrder;
-import org.hibernate.metamodel.MetadataSources;
-import org.hibernate.metamodel.source.internal.MetadataImpl;
-import org.hibernate.service.ServiceRegistryBuilder;
-import org.hibernate.service.internal.BasicServiceRegistryImpl;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.hibernate.metamodel.MetadataSourceProcessingOrder;
+import org.hibernate.metamodel.MetadataSources;
+import org.hibernate.metamodel.source.internal.MetadataImpl;
+import org.hibernate.service.ServiceRegistryBuilder;
+import org.hibernate.service.internal.StandardServiceRegistryImpl;
 import org.hibernate.testing.junit4.BaseUnitTestCase;
 
 import static org.junit.Assert.assertEquals;
@@ -43,11 +42,11 @@ import static org.junit.Assert.assertSame;
  * @author Steve Ebersole
  */
 public class BasicCollectionBindingTests extends BaseUnitTestCase {
-	private BasicServiceRegistryImpl serviceRegistry;
+	private StandardServiceRegistryImpl serviceRegistry;
 
 	@Before
 	public void setUp() {
-		serviceRegistry = (BasicServiceRegistryImpl) new ServiceRegistryBuilder().buildServiceRegistry();
+		serviceRegistry = (StandardServiceRegistryImpl) new ServiceRegistryBuilder().buildServiceRegistry();
 	}
 
 	@After

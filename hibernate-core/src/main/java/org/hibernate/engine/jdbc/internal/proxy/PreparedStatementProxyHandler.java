@@ -27,9 +27,9 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.util.Arrays;
 
-import org.hibernate.internal.CoreMessageLogger;
-
 import org.jboss.logging.Logger;
+
+import org.hibernate.internal.CoreMessageLogger;
 
 /**
  * Invocation handler for {@link java.sql.PreparedStatement} proxies
@@ -38,8 +38,7 @@ import org.jboss.logging.Logger;
  */
 public class PreparedStatementProxyHandler extends AbstractStatementProxyHandler {
 
-    private static final CoreMessageLogger LOG = Logger.getMessageLogger(CoreMessageLogger.class,
-                                                                       PreparedStatementProxyHandler.class.getName());
+	private static final CoreMessageLogger LOG = Logger.getMessageLogger( CoreMessageLogger.class, PreparedStatementProxyHandler.class.getName() );
 
 	private final String sql;
 
@@ -54,7 +53,7 @@ public class PreparedStatementProxyHandler extends AbstractStatementProxyHandler
 	}
 
 	@Override
-    protected void beginningInvocationHandling(Method method, Object[] args) {
+	protected void beginningInvocationHandling(Method method, Object[] args) {
 		if ( isExecution( method ) ) {
 			logExecution();
 		}
@@ -72,7 +71,9 @@ public class PreparedStatementProxyHandler extends AbstractStatementProxyHandler
 	}
 
 	private void journalParameterBind(Method method, Object[] args) {
-        LOG.trace("Binding via " + method.getName() + ": " + Arrays.asList(args));
+		if ( LOG.isTraceEnabled() ) {
+			LOG.tracev( "Binding via {0}: {1}", method.getName(), Arrays.asList( args ) );
+		}
 	}
 
 	private boolean isExecution(Method method) {

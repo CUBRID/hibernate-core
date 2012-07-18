@@ -33,6 +33,7 @@ import org.jboss.logging.Logger;
 import org.hibernate.HibernateException;
 import org.hibernate.cache.CacheException;
 import org.hibernate.cfg.Settings;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.internal.CoreMessageLogger;
 
 /**
@@ -48,34 +49,40 @@ import org.hibernate.internal.CoreMessageLogger;
 public class UpdateTimestampsCache {
 
 	public static final String REGION_NAME = UpdateTimestampsCache.class.getName();
-    private static final CoreMessageLogger LOG = Logger.getMessageLogger(CoreMessageLogger.class,
-                                                                                UpdateTimestampsCache.class.getName());
+	private static final CoreMessageLogger LOG = Logger.getMessageLogger( CoreMessageLogger.class, UpdateTimestampsCache.class.getName() );
 
 	private ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 	private final TimestampsRegion region;
+	private final SessionFactoryImplementor factory;
 
-	public UpdateTimestampsCache(Settings settings, Properties props) throws HibernateException {
+	public UpdateTimestampsCache(Settings settings, Properties props, final SessionFactoryImplementor factory) throws HibernateException {
+		this.factory = factory;
 		String prefix = settings.getCacheRegionPrefix();
 		String regionName = prefix == null ? REGION_NAME : prefix + '.' + REGION_NAME;
-        LOG.startingUpdateTimestampsCache(regionName);
+		LOG.startingUpdateTimestampsCache( regionName );
 		this.region = settings.getRegionFactory().buildTimestampsRegion( regionName, props );
 	}
+    @SuppressWarnings({"UnusedDeclaration"})
+    public UpdateTimestampsCache(Settings settings, Properties props)
+            throws HibernateException {
+        this(settings, props, null);
+    }
 
 	@SuppressWarnings({"UnnecessaryBoxing"})
 	public void preinvalidate(Serializable[] spaces) throws CacheException {
-		// TODO: to handle concurrent writes correctly, this should return a Lock to the client
-
 		readWriteLock.writeLock().lock();
 
 		try {
-			Long ts = new Long( region.nextTimestamp() + region.getTimeout() );
+			Long ts = region.nextTimestamp() + region.getTimeout();
 			for ( Serializable space : spaces ) {
-	            LOG.debugf("Pre-invalidating space [%s]", space);
+				LOG.debugf( "Pre-invalidating space [%s], timestamp: %s", space, ts );
 				//put() has nowait semantics, is this really appropriate?
 				//note that it needs to be async replication, never local or sync
 				region.put( space, ts );
+				if ( factory != null && factory.getStatistics().isStatisticsEnabled() ) {
+					factory.getStatisticsImplementor().updateTimestampsCachePut();
+				}
 			}
-			//TODO: return new Lock(ts);
 		}
 		finally {
 			readWriteLock.writeLock().unlock();
@@ -84,22 +91,22 @@ public class UpdateTimestampsCache {
 
 	 @SuppressWarnings({"UnnecessaryBoxing"})
 	public void invalidate(Serializable[] spaces) throws CacheException {
-		//TODO: to handle concurrent writes correctly, the client should pass in a Lock
-
 		readWriteLock.writeLock().lock();
 
 		try {
-			Long ts = new Long( region.nextTimestamp() );
-			//TODO: if lock.getTimestamp().equals(ts)
+			Long ts = region.nextTimestamp();
 			for (Serializable space : spaces) {
-		        LOG.debugf("Invalidating space [%s], timestamp: %s", space, ts);
-		        //put() has nowait semantics, is this really appropriate?
+				LOG.debugf( "Invalidating space [%s], timestamp: %s", space, ts );
+				//put() has nowait semantics, is this really appropriate?
 				//note that it needs to be async replication, never local or sync
 				region.put( space, ts );
+				if ( factory != null && factory.getStatistics().isStatisticsEnabled() ) {
+					factory.getStatisticsImplementor().updateTimestampsCachePut();
+				}
 			}
 		}
 		finally {
-		    readWriteLock.writeLock().unlock();
+			readWriteLock.writeLock().unlock();
 		}
 	}
 
@@ -111,14 +118,26 @@ public class UpdateTimestampsCache {
 			for ( Serializable space : (Set<Serializable>) spaces ) {
 				Long lastUpdate = (Long) region.get( space );
 				if ( lastUpdate == null ) {
+					if ( factory != null && factory.getStatistics().isStatisticsEnabled() ) {
+						factory.getStatisticsImplementor().updateTimestampsCacheMiss();
+					}
 					//the last update timestamp was lost from the cache
 					//(or there were no updates since startup!)
 					//updateTimestamps.put( space, new Long( updateTimestamps.nextTimestamp() ) );
 					//result = false; // safer
 				}
 				else {
-	                LOG.debugf("[%s] last update timestamp: %s", space, lastUpdate + ", result set timestamp: " + timestamp);
-					if ( lastUpdate.longValue() >= timestamp.longValue() ) return false;
+                    if ( LOG.isDebugEnabled() ) {
+                        LOG.debugf(
+                                "[%s] last update timestamp: %s",
+                                space,
+                                lastUpdate + ", result set timestamp: " + timestamp
+                        );
+                    }
+					if ( factory != null && factory.getStatistics().isStatisticsEnabled() ) {
+						factory.getStatisticsImplementor().updateTimestampsCacheHit();
+					}
+					if ( lastUpdate >= timestamp ) return false;
 				}
 			}
 			return true;
@@ -137,7 +156,7 @@ public class UpdateTimestampsCache {
 			region.destroy();
 		}
 		catch (Exception e) {
-            LOG.unableToDestroyUpdateTimestampsCache(region.getName(), e.getMessage());
+			LOG.unableToDestroyUpdateTimestampsCache( region.getName(), e.getMessage() );
 		}
 	}
 
@@ -147,7 +166,7 @@ public class UpdateTimestampsCache {
 
 	@Override
     public String toString() {
-        return "UpdateTimestampsCache";
+		return "UpdateTimestampsCache";
 	}
 
 }

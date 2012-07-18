@@ -32,13 +32,16 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
+
+import org.jboss.logging.Logger;
+
 import org.hibernate.AnnotationException;
 import org.hibernate.AssertionFailure;
-import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.MappingException;
 import org.hibernate.annotations.AnyMetaDef;
 import org.hibernate.annotations.AnyMetaDefs;
 import org.hibernate.annotations.MetaValue;
+import org.hibernate.annotations.SqlFragmentAlias;
 import org.hibernate.annotations.common.reflection.XAnnotatedElement;
 import org.hibernate.annotations.common.reflection.XClass;
 import org.hibernate.annotations.common.reflection.XPackage;
@@ -47,6 +50,7 @@ import org.hibernate.cfg.annotations.Nullability;
 import org.hibernate.cfg.annotations.TableBinder;
 import org.hibernate.id.MultipleHiLoPerTableGenerator;
 import org.hibernate.id.PersistentIdentifierGenerator;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.internal.util.StringHelper;
 import org.hibernate.mapping.Any;
 import org.hibernate.mapping.Collection;
@@ -62,8 +66,6 @@ import org.hibernate.mapping.SyntheticProperty;
 import org.hibernate.mapping.Table;
 import org.hibernate.mapping.ToOne;
 import org.hibernate.mapping.Value;
-
-import org.jboss.logging.Logger;
 
 /**
  * @author Emmanuel Bernard
@@ -638,7 +640,9 @@ public class BinderHelper {
 
 	private static void bindAnyMetaDef(AnyMetaDef defAnn, Mappings mappings) {
 		if ( isEmptyAnnotationValue( defAnn.name() ) ) return; //don't map not named definitions
-        LOG.debugf( "Binding Any Meta definition: %s", defAnn.name() );
+		if ( LOG.isDebugEnabled() ) {
+			LOG.debugf( "Binding Any Meta definition: %s", defAnn.name() );
+		}
 		mappings.addAnyMetaDef( defAnn );
 	}
 
@@ -689,5 +693,25 @@ public class BinderHelper {
 		}
         String propertyPath = isId ? "" : propertyName;
         return mappings.getPropertyAnnotatedWithMapsId(persistentXClass, propertyPath);
+	}
+	
+	public static Map<String,String> toAliasTableMap(SqlFragmentAlias[] aliases){
+		Map<String,String> ret = new HashMap<String,String>();
+		for (int i = 0; i < aliases.length; i++){
+			if (StringHelper.isNotEmpty(aliases[i].table())){
+				ret.put(aliases[i].alias(), aliases[i].table());
+			}
+		}
+		return ret;
+	}
+	
+	public static Map<String,String> toAliasEntityMap(SqlFragmentAlias[] aliases){
+		Map<String,String> ret = new HashMap<String,String>();
+		for (int i = 0; i < aliases.length; i++){
+			if (aliases[i].entity() != void.class){
+				ret.put(aliases[i].alias(), aliases[i].entity().getName());
+			}
+		}
+		return ret;
 	}
 }

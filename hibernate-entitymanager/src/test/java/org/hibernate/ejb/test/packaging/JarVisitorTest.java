@@ -23,14 +23,18 @@
  */
 package org.hibernate.ejb.test.packaging;
 
-import javax.persistence.Embeddable;
-import javax.persistence.Entity;
-import javax.persistence.MappedSuperclass;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.URLStreamHandler;
+import java.net.URLStreamHandlerFactory;
 import java.util.Set;
+import javax.persistence.Embeddable;
+import javax.persistence.Entity;
+import javax.persistence.MappedSuperclass;
+
+import org.junit.Test;
 
 import org.hibernate.ejb.packaging.ClassFilter;
 import org.hibernate.ejb.packaging.Entry;
@@ -45,9 +49,6 @@ import org.hibernate.ejb.packaging.JarVisitorFactory;
 import org.hibernate.ejb.packaging.PackageFilter;
 import org.hibernate.ejb.test.pack.defaultpar.ApplicationServer;
 import org.hibernate.ejb.test.pack.explodedpar.Carpet;
-
-import org.junit.Test;
-
 import org.hibernate.testing.TestForIssue;
 
 import static org.junit.Assert.assertEquals;
@@ -219,6 +220,41 @@ public class JarVisitorTest extends PackagingTestCase {
 			assertNotNull( localEntry.getInputStream() );
 			localEntry.getInputStream().close();
 		}
+	}
+	
+	@Test
+	@TestForIssue(jiraKey = "HHH-6806")
+	public void testJarVisitorFactory() throws Exception{
+		
+        //setting URL to accept vfs based protocol
+		URL.setURLStreamHandlerFactory(new URLStreamHandlerFactory() {
+			public URLStreamHandler createURLStreamHandler(String protocol) {
+				if("vfszip".equals(protocol) || "vfsfile".equals(protocol) )
+				return new URLStreamHandler() {
+					protected URLConnection openConnection(URL u)
+							throws IOException {
+						return null;
+					}
+				};
+				return null;
+			}
+		});
+        
+		URL jarUrl  = new URL ("file:./target/packages/defaultpar.par");
+		JarVisitor jarVisitor =  JarVisitorFactory.getVisitor(jarUrl, getFilters(), null);
+		assertEquals(FileZippedJarVisitor.class.getName(), jarVisitor.getClass().getName());
+		
+		jarUrl  = new URL ("file:./target/packages/explodedpar");
+		jarVisitor =  JarVisitorFactory.getVisitor(jarUrl, getFilters(), null);
+		assertEquals(ExplodedJarVisitor.class.getName(), jarVisitor.getClass().getName());
+		
+		jarUrl  = new URL ("vfszip:./target/packages/defaultpar.par");
+		jarVisitor =  JarVisitorFactory.getVisitor(jarUrl, getFilters(), null);
+		assertEquals(FileZippedJarVisitor.class.getName(), jarVisitor.getClass().getName());
+		
+		jarUrl  = new URL ("vfsfile:./target/packages/explodedpar");
+		jarVisitor =  JarVisitorFactory.getVisitor(jarUrl, getFilters(), null);
+		assertEquals(ExplodedJarVisitor.class.getName(), jarVisitor.getClass().getName());		
 	}
 
 	@Test

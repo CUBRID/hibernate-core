@@ -29,6 +29,7 @@ import java.sql.SQLException;
 import org.jboss.logging.Logger;
 
 import org.hibernate.dialect.CUBRIDDialect;
+import org.hibernate.dialect.DB2400Dialect;
 import org.hibernate.dialect.DB2Dialect;
 import org.hibernate.dialect.DerbyDialect;
 import org.hibernate.dialect.DerbyTenFiveDialect;
@@ -45,7 +46,8 @@ import org.hibernate.dialect.MySQLDialect;
 import org.hibernate.dialect.Oracle10gDialect;
 import org.hibernate.dialect.Oracle8iDialect;
 import org.hibernate.dialect.Oracle9iDialect;
-import org.hibernate.dialect.PostgreSQLDialect;
+import org.hibernate.dialect.PostgreSQL81Dialect;
+import org.hibernate.dialect.PostgreSQL82Dialect;
 import org.hibernate.dialect.SQLServer2005Dialect;
 import org.hibernate.dialect.SQLServer2008Dialect;
 import org.hibernate.dialect.SQLServerDialect;
@@ -85,7 +87,11 @@ public class StandardDialectResolver extends AbstractDialectResolver {
 		}
 
 		if ( "PostgreSQL".equals( databaseName ) ) {
-			return new PostgreSQLDialect();
+			final int databaseMinorVersion = metaData.getDatabaseMinorVersion();
+			if (databaseMajorVersion >= 8 && databaseMinorVersion >= 2) {
+				return new PostgreSQL82Dialect();
+			}
+			return new PostgreSQL81Dialect();
 		}
 
 		if ( "Apache Derby".equals( databaseName ) ) {
@@ -144,6 +150,10 @@ public class StandardDialectResolver extends AbstractDialectResolver {
 
 		if ( "Informix Dynamic Server".equals( databaseName ) ) {
 			return new InformixDialect();
+		}
+		
+		if ( databaseName.equals("DB2 UDB for AS/400" ) ) {
+			return new DB2400Dialect();
 		}
 
 		if ( databaseName.startsWith( "DB2/" ) ) {

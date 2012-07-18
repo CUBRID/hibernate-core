@@ -153,7 +153,7 @@ public class DefaultLoadEventListener extends AbstractLockUpgradeEventListener i
 			}
 		}
 		catch(HibernateException e) {
-            LOG.unableToLoadCommand(e);
+			LOG.unableToLoadCommand( e );
 			throw e;
 		}
 	}
@@ -234,19 +234,28 @@ public class DefaultLoadEventListener extends AbstractLockUpgradeEventListener i
 		final EntityKey keyToLoad,
 		final LoadEventListener.LoadType options) {
 
-        if (LOG.isTraceEnabled()) LOG.trace("Loading entity: "
-                                            + MessageHelper.infoString(persister,
-                                                                             event.getEntityId(),
-                                                                             event.getSession().getFactory()));
+		if ( LOG.isTraceEnabled() ) {
+			LOG.tracev( "Loading entity: {0}",
+					MessageHelper.infoString( persister, event.getEntityId(), event.getSession().getFactory() ) );
+		}
 
         // this class has no proxies (so do a shortcut)
-        if (!persister.hasProxy()) return load(event, persister, keyToLoad, options);
+        if (!persister.hasProxy()) {
+			return load(event, persister, keyToLoad, options);
+		}
+
         final PersistenceContext persistenceContext = event.getSession().getPersistenceContext();
 
 		// look for a proxy
         Object proxy = persistenceContext.getProxy(keyToLoad);
-        if (proxy != null) return returnNarrowedProxy(event, persister, keyToLoad, options, persistenceContext, proxy);
-        if (options.isAllowProxyCreation()) return createProxyIfNecessary(event, persister, keyToLoad, options, persistenceContext);
+        if (proxy != null) {
+			return returnNarrowedProxy(event, persister, keyToLoad, options, persistenceContext, proxy);
+		}
+
+        if (options.isAllowProxyCreation()) {
+			return createProxyIfNecessary(event, persister, keyToLoad, options, persistenceContext);
+		}
+
         // return a newly loaded object
         return load(event, persister, keyToLoad, options);
 	}
@@ -270,7 +279,7 @@ public class DefaultLoadEventListener extends AbstractLockUpgradeEventListener i
 			final LoadEventListener.LoadType options,
 			final PersistenceContext persistenceContext,
 			final Object proxy) {
-        LOG.trace("Entity proxy found in session cache");
+		LOG.trace( "Entity proxy found in session cache" );
 		LazyInitializer li = ( (HibernateProxy) proxy ).getHibernateLazyInitializer();
 		if ( li.isUnwrap() ) {
 			return li.getImplementation();
@@ -306,7 +315,7 @@ public class DefaultLoadEventListener extends AbstractLockUpgradeEventListener i
 		Object existing = persistenceContext.getEntity( keyToLoad );
 		if ( existing != null ) {
 			// return existing object or initialized proxy (unless deleted)
-            LOG.trace("Entity found in session cache");
+			LOG.trace( "Entity found in session cache" );
 			if ( options.isCheckDeleted() ) {
 				EntityEntry entry = persistenceContext.getEntry( existing );
 				Status status = entry.getStatus();
@@ -316,12 +325,12 @@ public class DefaultLoadEventListener extends AbstractLockUpgradeEventListener i
 			}
 			return existing;
 		}
-        LOG.trace("Creating new proxy for entity");
-        // return new uninitialized proxy
-        Object proxy = persister.createProxy(event.getEntityId(), event.getSession());
-        persistenceContext.getBatchFetchQueue().addBatchLoadableEntityKey(keyToLoad);
-        persistenceContext.addProxy(keyToLoad, proxy);
-        return proxy;
+		LOG.trace( "Creating new proxy for entity" );
+		// return new uninitialized proxy
+		Object proxy = persister.createProxy( event.getEntityId(), event.getSession() );
+		persistenceContext.getBatchFetchQueue().addBatchLoadableEntityKey( keyToLoad );
+		persistenceContext.addProxy( keyToLoad, proxy );
+		return proxy;
 	}
 
 	/**
@@ -388,43 +397,46 @@ public class DefaultLoadEventListener extends AbstractLockUpgradeEventListener i
 			final EntityKey keyToLoad,
 			final LoadEventListener.LoadType options) {
 
-        if (LOG.isTraceEnabled()) LOG.trace("Attempting to resolve: "
-                                            + MessageHelper.infoString(persister,
-                                                                       event.getEntityId(),
-                                                                       event.getSession().getFactory()));
+		final boolean traceEnabled = LOG.isTraceEnabled();
+		if ( traceEnabled ) LOG.tracev( "Attempting to resolve: {0}",
+					MessageHelper.infoString( persister, event.getEntityId(), event.getSession().getFactory() ) );
 
 		Object entity = loadFromSessionCache( event, keyToLoad, options );
 		if ( entity == REMOVED_ENTITY_MARKER ) {
-            LOG.debugf("Load request found matching entity in context, but it is scheduled for removal; returning null");
+			LOG.debug( "Load request found matching entity in context, but it is scheduled for removal; returning null" );
 			return null;
 		}
 		if ( entity == INCONSISTENT_RTN_CLASS_MARKER ) {
-            LOG.debugf("Load request found matching entity in context, but the matched entity was of an inconsistent return type; returning null");
+			LOG.debug( "Load request found matching entity in context, but the matched entity was of an inconsistent return type; returning null" );
 			return null;
 		}
 		if ( entity != null ) {
-            if (LOG.isTraceEnabled()) LOG.trace("Resolved object in session cache: "
-                                                + MessageHelper.infoString(persister,
-                                                                           event.getEntityId(),
-                                                                           event.getSession().getFactory()));
+			if (traceEnabled) LOG.tracev("Resolved object in session cache: {0}",
+						MessageHelper.infoString( persister, event.getEntityId(), event.getSession().getFactory() ) );
 			return entity;
 		}
 
 		entity = loadFromSecondLevelCache(event, persister, options);
 		if ( entity != null ) {
-            if (LOG.isTraceEnabled()) LOG.trace("Resolved object in second-level cache: "
-                                                + MessageHelper.infoString(persister,
-                                                                           event.getEntityId(),
-                                                                           event.getSession().getFactory()));
-			return entity;
+			if ( traceEnabled ) LOG.tracev( "Resolved object in second-level cache: {0}",
+					MessageHelper.infoString( persister, event.getEntityId(), event.getSession().getFactory() ) );
+		}
+		else {
+			if ( traceEnabled ) LOG.tracev( "Object not resolved in any cache: {0}",
+					MessageHelper.infoString( persister, event.getEntityId(), event.getSession().getFactory() ) );
+			entity = loadFromDatasource(event, persister, keyToLoad, options);
+		}
+		
+		if (entity != null && persister.hasNaturalIdentifier()) {
+			event.getSession().getPersistenceContext().getNaturalIdHelper().cacheNaturalIdCrossReferenceFromLoad(
+					persister,
+					event.getEntityId(),
+					event.getSession().getPersistenceContext().getNaturalIdHelper().extractNaturalIdValues( entity, persister )
+			);
 		}
 
-        if (LOG.isTraceEnabled()) LOG.trace("Object not resolved in any cache: "
-                                            + MessageHelper.infoString(persister,
-                                                                       event.getEntityId(),
-                                                                       event.getSession().getFactory()));
 
-		return loadFromDatasource(event, persister, keyToLoad, options);
+		return entity;
 	}
 
 	/**
@@ -449,7 +461,7 @@ public class DefaultLoadEventListener extends AbstractLockUpgradeEventListener i
 				event.getLockOptions(),
 				source
 		);
-
+		
 		if ( event.isAssociationFetch() && source.getFactory().getStatistics().isStatisticsEnabled() ) {
 			source.getFactory().getStatisticsImplementor().fetchEntity( event.getEntityClassName() );
 		}
@@ -571,8 +583,10 @@ public class DefaultLoadEventListener extends AbstractLockUpgradeEventListener i
 		final EventSource session = event.getSession();
 		final SessionFactoryImplementor factory = session.getFactory();
 
-        if (LOG.isTraceEnabled()) LOG.trace("Assembling entity from second-level cache: "
-                                            + MessageHelper.infoString(persister, id, factory));
+		if ( LOG.isTraceEnabled() ) {
+			LOG.tracev( "Assembling entity from second-level cache: {0}",
+					MessageHelper.infoString( persister, id, factory ) );
+		}
 
 		EntityPersister subclassPersister = factory.getEntityPersister( entry.getSubclass() );
 		Object result = optionalObject == null ?
@@ -601,7 +615,7 @@ public class DefaultLoadEventListener extends AbstractLockUpgradeEventListener i
 		);
 
 		Object version = Versioning.getVersion( values, subclassPersister );
-        if (LOG.isTraceEnabled()) LOG.trace("Cached Version: " + version);
+		LOG.tracev( "Cached Version: {0}", version );
 
 		final PersistenceContext persistenceContext = session.getPersistenceContext();
 		boolean isReadOnly = session.isDefaultReadOnly();

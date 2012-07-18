@@ -23,11 +23,10 @@
  */
 package org.hibernate.test.annotations.access;
 
-import org.hibernate.Session;
-import org.hibernate.Transaction;
-
 import org.junit.Test;
 
+import org.hibernate.Session;
+import org.hibernate.Transaction;
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
@@ -75,7 +74,7 @@ public class AccessTest extends BaseCoreFunctionalTestCase {
 		tx.commit();
 		s.close();
 	}
-
+    @Test
 	public void testPropertyOverriding() throws Exception {
 		Furniture fur = new Furniture();
 		fur.weight = 3;
@@ -91,7 +90,7 @@ public class AccessTest extends BaseCoreFunctionalTestCase {
 		tx.commit();
 		s.close();
 	}
-
+    @Test
 	public void testNonOverridenSubclass() throws Exception {
 		Chair chair = new Chair();
 		chair.setPillow( "Blue" );
@@ -107,7 +106,7 @@ public class AccessTest extends BaseCoreFunctionalTestCase {
 		tx.commit();
 		s.close();
 	}
-
+    @Test
 	public void testOverridenSubclass() throws Exception {
 		BigBed bed = new BigBed();
 		bed.size = 5;
@@ -125,7 +124,7 @@ public class AccessTest extends BaseCoreFunctionalTestCase {
 		tx.commit();
 		s.close();
 	}
-
+    @Test
 	public void testFieldsOverriding() throws Exception {
 		Gardenshed gs = new Gardenshed();
 		gs.floors = 4;
@@ -142,7 +141,7 @@ public class AccessTest extends BaseCoreFunctionalTestCase {
 		tx.commit();
 		s.close();
 	}
-
+    @Override
 	protected Class[] getAnnotatedClasses() {
 		return new Class[] {
 				Bed.class,

@@ -1,23 +1,21 @@
 package org.hibernate.cache.infinispan.query;
+
 import java.util.Properties;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
+
 import org.hibernate.cache.CacheException;
-import org.hibernate.cache.spi.QueryResultsRegion;
-import org.hibernate.cache.spi.RegionFactory;
 import org.hibernate.cache.infinispan.impl.BaseTransactionalDataRegion;
 import org.hibernate.cache.infinispan.util.CacheAdapter;
-import org.hibernate.cache.infinispan.util.CacheHelper;
 import org.hibernate.cache.infinispan.util.FlagAdapter;
-
-import org.infinispan.notifications.Listener;
+import org.hibernate.cache.spi.QueryResultsRegion;
+import org.hibernate.cache.spi.RegionFactory;
 
 /**
  * @author Chris Bredesen
  * @author Galder Zamarreño
  * @since 3.5
  */
-@Listener
 public class QueryResultsRegionImpl extends BaseTransactionalDataRegion implements QueryResultsRegion {
    private boolean localOnly;
 
@@ -38,7 +36,8 @@ public class QueryResultsRegionImpl extends BaseTransactionalDataRegion implemen
    public void evictAll() throws CacheException {
       Transaction tx = suspend();
       try {
-         CacheHelper.sendEvictAllNotification(cacheAdapter, getAddress());
+         invalidateRegion(); // Invalidate the local region and then go remote
+         cacheAdapter.broadcastEvictAll();
       } finally {
          resume(tx);
       }

@@ -22,7 +22,10 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate.test.hql;
+
 import java.util.List;
+
+import org.junit.Test;
 
 import org.hibernate.FetchMode;
 import org.hibernate.Hibernate;
@@ -31,10 +34,9 @@ import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
 import org.hibernate.criterion.Restrictions;
+import org.hibernate.dialect.SybaseASE15Dialect;
 import org.hibernate.dialect.function.SQLFunction;
-
-import org.junit.Test;
-
+import org.hibernate.testing.SkipForDialect;
 import org.hibernate.testing.SkipLog;
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
@@ -47,6 +49,7 @@ import static org.junit.Assert.assertTrue;
  *
  * @author Gail Badner
  */
+@SkipForDialect( value = SybaseASE15Dialect.class, jiraKey = "HHH-6426")
 public class FunctionNameAsColumnTest  extends BaseCoreFunctionalTestCase {
 	@Override
 	public String[] getMappings() {

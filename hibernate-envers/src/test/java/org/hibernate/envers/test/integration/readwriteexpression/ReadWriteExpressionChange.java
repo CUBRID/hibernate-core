@@ -1,17 +1,21 @@
 package org.hibernate.envers.test.integration.readwriteexpression;
 
-import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.test.AbstractEntityTest;
-import org.hibernate.envers.test.Priority;
+import java.math.BigDecimal;
+import java.util.List;
+import javax.persistence.EntityManager;
+
+import org.hibernate.dialect.Oracle8iDialect;
+import org.junit.Assert;
 import org.junit.Test;
 
-import javax.persistence.EntityManager;
-import java.util.List;
+import org.hibernate.ejb.Ejb3Configuration;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
+import org.hibernate.envers.test.Priority;
 
-public class ReadWriteExpressionChange extends AbstractEntityTest {
+public class ReadWriteExpressionChange extends BaseEnversJPAFunctionalTestCase {
 
-    private static final double HEIGHT_INCHES = 73;
-    private static final double HEIGHT_CENTIMETERS = HEIGHT_INCHES * 2.54d;
+    private static final Double HEIGHT_INCHES = 73.0d;
+    private static final Double HEIGHT_CENTIMETERS = HEIGHT_INCHES * 2.54d;
 
     private Integer id;
 
@@ -35,18 +39,23 @@ public class ReadWriteExpressionChange extends AbstractEntityTest {
     public void shouldRespectWriteExpression() {
         EntityManager em = getEntityManager();
         List resultList = em.createNativeQuery("select size_in_cm from t_staff_AUD where id ="+id).getResultList();
-        assert 1 == resultList.size();
-        Double sizeInCm = (Double) resultList.get(0);
-        assert sizeInCm.equals(HEIGHT_CENTIMETERS);
+        Assert.assertEquals(1, resultList.size());
+        Double sizeInCm = null;
+        if (getDialect() instanceof Oracle8iDialect) {
+            sizeInCm = ((BigDecimal) resultList.get(0)).doubleValue();
+        } else {
+            sizeInCm = (Double) resultList.get(0);
+        }
+        Assert.assertEquals(HEIGHT_CENTIMETERS, sizeInCm.doubleValue(), 0.00000001);
     }
 
     @Test
     public void shouldRespectReadExpression() {
         List<Number> revisions = getAuditReader().getRevisions(Staff.class, id);
-        assert 1 == revisions.size();
+        Assert.assertEquals(1, revisions.size());
         Number number = revisions.get(0);
         Staff staffRev = getAuditReader().find(Staff.class, id, number);
-        assert HEIGHT_INCHES == staffRev.getSizeInInches();
+        Assert.assertEquals(HEIGHT_INCHES, staffRev.getSizeInInches(), 0.00000001);
     }
 
 }

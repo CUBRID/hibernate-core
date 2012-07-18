@@ -26,19 +26,19 @@ package org.hibernate.test.sql.hand.custom;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.Iterator;
+
+import org.junit.Test;
+
 import org.hibernate.LockMode;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.internal.util.collections.ArrayHelper;
-
-import org.junit.Test;
-
-import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 import org.hibernate.test.sql.hand.Employment;
 import org.hibernate.test.sql.hand.ImageHolder;
 import org.hibernate.test.sql.hand.Organization;
 import org.hibernate.test.sql.hand.Person;
 import org.hibernate.test.sql.hand.TextHolder;
+import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -89,8 +89,8 @@ public abstract class CustomSQLTestSupport extends BaseCoreFunctionalTestCase {
 		assertEquals( jboss.getName(), "JBOSS" );
 		emp = ( Employment ) jboss.getEmployments().iterator().next();
 		gavin = emp.getEmployee();
-		assertEquals( gavin.getName(), "GAVIN" );
-		assertEquals( s.getCurrentLockMode( gavin ), LockMode.PESSIMISTIC_WRITE );
+		assertEquals( "GAVIN" , gavin.getName() );
+		assertEquals( LockMode.UPGRADE , s.getCurrentLockMode( gavin ));
 		emp.setEndDate( new Date() );
 		Employment emp3 = new Employment( gavin, jboss, "US" );
 		s.save( emp3 );
@@ -179,7 +179,7 @@ public abstract class CustomSQLTestSupport extends BaseCoreFunctionalTestCase {
 	}
 
 	private String buildLongString(int size, char baseChar) {
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		for( int i = 0; i < size; i++ ) {
 			buff.append( baseChar );
 		}

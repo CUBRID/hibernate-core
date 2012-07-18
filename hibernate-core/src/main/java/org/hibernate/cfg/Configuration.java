@@ -23,9 +23,6 @@
  */
 package org.hibernate.cfg;
 
-import javax.persistence.Embeddable;
-import javax.persistence.Entity;
-import javax.persistence.MapsId;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -53,6 +50,9 @@ import java.util.StringTokenizer;
 import java.util.TreeMap;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
+import javax.persistence.Embeddable;
+import javax.persistence.Entity;
+import javax.persistence.MapsId;
 
 import org.dom4j.Attribute;
 import org.dom4j.Document;
@@ -66,10 +66,6 @@ import org.hibernate.AnnotationException;
 import org.hibernate.DuplicateMappingException;
 import org.hibernate.EmptyInterceptor;
 import org.hibernate.HibernateException;
-import org.hibernate.engine.spi.FilterDefinition;
-import org.hibernate.engine.spi.Mapping;
-import org.hibernate.engine.spi.NamedQueryDefinition;
-import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.Interceptor;
 import org.hibernate.InvalidMappingException;
 import org.hibernate.MappingException;
@@ -83,16 +79,22 @@ import org.hibernate.annotations.common.reflection.ReflectionManager;
 import org.hibernate.annotations.common.reflection.XClass;
 import org.hibernate.annotations.common.reflection.java.JavaReflectionManager;
 import org.hibernate.cfg.annotations.reflection.JPAMetadataProvider;
+import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
 import org.hibernate.dialect.Dialect;
 import org.hibernate.dialect.MySQLDialect;
 import org.hibernate.dialect.function.SQLFunction;
-import org.hibernate.engine.spi.NamedSQLQueryDefinition;
 import org.hibernate.engine.ResultSetMappingDefinition;
+import org.hibernate.engine.spi.FilterDefinition;
+import org.hibernate.engine.spi.Mapping;
+import org.hibernate.engine.spi.NamedQueryDefinition;
+import org.hibernate.engine.spi.NamedSQLQueryDefinition;
 import org.hibernate.id.IdentifierGenerator;
 import org.hibernate.id.IdentifierGeneratorAggregator;
 import org.hibernate.id.PersistentIdentifierGenerator;
-import org.hibernate.id.factory.DefaultIdentifierGeneratorFactory;
 import org.hibernate.id.factory.IdentifierGeneratorFactory;
+import org.hibernate.id.factory.internal.DefaultIdentifierGeneratorFactory;
+import org.hibernate.id.factory.spi.MutableIdentifierGeneratorFactory;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.internal.SessionFactoryImpl;
 import org.hibernate.internal.util.ConfigHelper;
 import org.hibernate.internal.util.ReflectHelper;
@@ -102,6 +104,7 @@ import org.hibernate.internal.util.collections.ArrayHelper;
 import org.hibernate.internal.util.collections.CollectionHelper;
 import org.hibernate.internal.util.collections.JoinedIterator;
 import org.hibernate.internal.util.config.ConfigurationHelper;
+import org.hibernate.internal.util.xml.ErrorLogger;
 import org.hibernate.internal.util.xml.MappingReader;
 import org.hibernate.internal.util.xml.Origin;
 import org.hibernate.internal.util.xml.OriginImpl;
@@ -131,7 +134,7 @@ import org.hibernate.proxy.EntityNotFoundDelegate;
 import org.hibernate.secure.internal.JACCConfiguration;
 import org.hibernate.service.ServiceRegistry;
 import org.hibernate.service.ServiceRegistryBuilder;
-import org.hibernate.service.internal.BasicServiceRegistryImpl;
+import org.hibernate.service.internal.StandardServiceRegistryImpl;
 import org.hibernate.tool.hbm2ddl.DatabaseMetadata;
 import org.hibernate.tool.hbm2ddl.IndexMetadata;
 import org.hibernate.tool.hbm2ddl.TableMetadata;
@@ -156,15 +159,18 @@ import org.hibernate.usertype.UserType;
  * <br>
  * A new <tt>Configuration</tt> will use the properties specified in
  * <tt>hibernate.properties</tt> by default.
+ * <p/>
+ * NOTE : This will be replaced by use of {@link ServiceRegistryBuilder} and
+ * {@link org.hibernate.metamodel.MetadataSources} instead after the 4.0 release at which point this class will become
+ * deprecated and scheduled for removal in 5.0.  See
+ * <a href="http://opensource.atlassian.com/projects/hibernate/browse/HHH-6183">HHH-6183</a>,
+ * <a href="http://opensource.atlassian.com/projects/hibernate/browse/HHH-2578">HHH-2578</a> and
+ * <a href="http://opensource.atlassian.com/projects/hibernate/browse/HHH-6586">HHH-6586</a> for details
  *
  * @author Gavin King
  * @see org.hibernate.SessionFactory
- *
- * @deprecated use {@link ServiceRegistryBuilder} and {@link org.hibernate.metamodel.MetadataSources} instead.  See
- * <a href="http://opensource.atlassian.com/projects/hibernate/browse/HHH-6183">HHH-6183</a> and
- * <a href="http://opensource.atlassian.com/projects/hibernate/browse/HHH-2578">HHH-2578</a> for details
  */
-@Deprecated
+@SuppressWarnings( {"UnusedDeclaration"})
 public class Configuration implements Serializable {
 
     private static final CoreMessageLogger LOG = Logger.getMessageLogger(CoreMessageLogger.class, Configuration.class.getName());
@@ -228,7 +234,7 @@ public class Configuration implements Serializable {
 
 	private transient Mapping mapping = buildMapping();
 
-	private DefaultIdentifierGeneratorFactory identifierGeneratorFactory;
+	private MutableIdentifierGeneratorFactory identifierGeneratorFactory;
 
 	private Map<Class<?>, org.hibernate.mapping.MappedSuperclass> mappedSuperClasses;
 
@@ -250,6 +256,7 @@ public class Configuration implements Serializable {
 	private boolean isValidatorNotPresentLogged;
 	private Map<XClass, Map<String, PropertyData>> propertiesAnnotatedWithMapsId;
 	private Map<XClass, Map<String, PropertyData>> propertiesAnnotatedWithIdAndToOne;
+	private CurrentTenantIdentifierResolver currentTenantIdentifierResolver;
 	private boolean specjProprietarySyntaxEnabled;
 
 
@@ -450,7 +457,7 @@ public class Configuration implements Serializable {
 	 * have indicated a problem parsing the XML document, but that is now delayed until after {@link #buildMappings}
 	 */
 	public Configuration addFile(final File xmlFile) throws MappingException {
-        LOG.readingMappingsFromFile(xmlFile.getPath());
+		LOG.readingMappingsFromFile( xmlFile.getPath() );
 		final String name =  xmlFile.getAbsolutePath();
 		final InputSource inputSource;
 		try {
@@ -519,10 +526,10 @@ public class Configuration implements Serializable {
 			return addCacheableFileStrictly( xmlFile );
 		}
 		catch ( SerializationException e ) {
-            LOG.unableToDeserializeCache(cachedFile.getPath(), e);
+			LOG.unableToDeserializeCache( cachedFile.getPath(), e );
 		}
 		catch ( FileNotFoundException e ) {
-            LOG.cachedFileNotFound( cachedFile.getPath(), e );
+			LOG.cachedFileNotFound( cachedFile.getPath(), e );
 		}
 
 		final String name = xmlFile.getAbsolutePath();
@@ -534,14 +541,15 @@ public class Configuration implements Serializable {
 			throw new MappingNotFoundException( "file", xmlFile.toString() );
 		}
 
-        LOG.readingMappingsFromFile(xmlFile.getPath());
+		LOG.readingMappingsFromFile( xmlFile.getPath() );
 		XmlDocument metadataXml = add( inputSource, "file", name );
 
 		try {
-            LOG.debugf("Writing cache file for: %s to: %s", xmlFile, cachedFile);
+			LOG.debugf( "Writing cache file for: %s to: %s", xmlFile, cachedFile );
 			SerializationHelper.serialize( ( Serializable ) metadataXml.getDocumentTree(), new FileOutputStream( cachedFile ) );
-        } catch (Exception e) {
-            LOG.unableToWriteCachedFile(cachedFile.getPath(), e.getMessage());
+		}
+		catch ( Exception e ) {
+			LOG.unableToWriteCachedFile( cachedFile.getPath(), e.getMessage() );
 		}
 
 		return this;
@@ -575,7 +583,7 @@ public class Configuration implements Serializable {
 			throw new FileNotFoundException( "Cached file could not be found or could not be used" );
 		}
 
-        LOG.readingCachedMappings(cachedFile);
+		LOG.readingCachedMappings( cachedFile );
 		Document document = ( Document ) SerializationHelper.deserialize( new FileInputStream( cachedFile ) );
 		add( new XmlDocumentImpl( document, "file", xmlFile.getAbsolutePath() ) );
 		return this;
@@ -605,7 +613,7 @@ public class Configuration implements Serializable {
 	 * given XML string
 	 */
 	public Configuration addXML(String xml) throws MappingException {
-        LOG.debugf("Mapping XML:\n%s", xml);
+		LOG.debugf( "Mapping XML:\n%s", xml );
 		final InputSource inputSource = new InputSource( new StringReader( xml ) );
 		add( inputSource, "string", "XML String" );
 		return this;
@@ -622,7 +630,7 @@ public class Configuration implements Serializable {
 	public Configuration addURL(URL url) throws MappingException {
 		final String urlExternalForm = url.toExternalForm();
 
-        LOG.debugf("Reading mapping document from URL : %s", urlExternalForm);
+		LOG.debugf( "Reading mapping document from URL : %s", urlExternalForm );
 
 		try {
 			add( url.openStream(), "URL", urlExternalForm );
@@ -643,7 +651,7 @@ public class Configuration implements Serializable {
 				inputStream.close();
 			}
 			catch ( IOException ignore ) {
-                LOG.trace("Was unable to close input stream");
+				LOG.trace( "Was unable to close input stream");
 			}
 		}
 	}
@@ -657,7 +665,7 @@ public class Configuration implements Serializable {
 	 * the mapping document.
 	 */
 	public Configuration addDocument(org.w3c.dom.Document doc) throws MappingException {
-        LOG.debugf("Mapping Document:\n%s", doc);
+		LOG.debugf( "Mapping Document:\n%s", doc );
 
 		final Document document = xmlHelper.createDOMReader().read( doc );
 		add( new XmlDocumentImpl( document, "unknown", null ) );
@@ -688,7 +696,7 @@ public class Configuration implements Serializable {
 	 * processing the contained mapping document.
 	 */
 	public Configuration addResource(String resourceName, ClassLoader classLoader) throws MappingException {
-        LOG.readingMappingsFromResource(resourceName);
+		LOG.readingMappingsFromResource( resourceName );
 		InputStream resourceInputStream = classLoader.getResourceAsStream( resourceName );
 		if ( resourceInputStream == null ) {
 			throw new MappingNotFoundException( "resource", resourceName );
@@ -707,7 +715,7 @@ public class Configuration implements Serializable {
 	 * processing the contained mapping document.
 	 */
 	public Configuration addResource(String resourceName) throws MappingException {
-        LOG.readingMappingsFromResource(resourceName);
+		LOG.readingMappingsFromResource( resourceName );
 		ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 		InputStream resourceInputStream = null;
 		if ( contextClassLoader != null ) {
@@ -735,7 +743,7 @@ public class Configuration implements Serializable {
 	 */
 	public Configuration addClass(Class persistentClass) throws MappingException {
 		String mappingResourceName = persistentClass.getName().replace( '.', '/' ) + ".hbm.xml";
-        LOG.readingMappingsFromResource(mappingResourceName);
+		LOG.readingMappingsFromResource( mappingResourceName );
 		return addResource( mappingResourceName, persistentClass.getClassLoader() );
 	}
 
@@ -763,13 +771,13 @@ public class Configuration implements Serializable {
 	 * @throws MappingException in case there is an error in the mapping data
 	 */
 	public Configuration addPackage(String packageName) throws MappingException {
-        LOG.debugf( "Mapping Package %s", packageName );
+		LOG.debugf( "Mapping Package %s", packageName );
 		try {
 			AnnotationBinder.bindPackage( packageName, createMappings() );
 			return this;
 		}
 		catch ( MappingException me ) {
-            LOG.unableToParseMetadata(packageName);
+			LOG.unableToParseMetadata( packageName );
 			throw me;
 		}
 	}
@@ -785,7 +793,7 @@ public class Configuration implements Serializable {
 	 * processing the contained mapping documents.
 	 */
 	public Configuration addJar(File jar) throws MappingException {
-        LOG.searchingForMappingDocuments(jar.getName());
+		LOG.searchingForMappingDocuments( jar.getName() );
 		JarFile jarFile = null;
 		try {
 			try {
@@ -801,7 +809,7 @@ public class Configuration implements Serializable {
 			while ( jarEntries.hasMoreElements() ) {
 				ZipEntry ze = (ZipEntry) jarEntries.nextElement();
 				if ( ze.getName().endsWith( ".hbm.xml" ) ) {
-                    LOG.foundMappingDocument(ze.getName());
+					LOG.foundMappingDocument( ze.getName() );
 					try {
 						addInputStream( jarFile.getInputStream( ze ) );
 					}
@@ -823,7 +831,7 @@ public class Configuration implements Serializable {
 				}
 			}
 			catch (IOException ioe) {
-                LOG.unableToCloseJar(ioe.getMessage());
+				LOG.unableToCloseJar( ioe.getMessage() );
 			}
 		}
 
@@ -1118,22 +1126,23 @@ public class Configuration implements Serializable {
 		Iterator iter = getTableMappings();
 		while ( iter.hasNext() ) {
 			Table table = (Table) iter.next();
+			String tableSchema = ( table.getSchema() == null ) ? defaultSchema : table.getSchema() ;
+			String tableCatalog = ( table.getCatalog() == null ) ? defaultCatalog : table.getCatalog();
 			if ( table.isPhysicalTable() ) {
 
 				TableMetadata tableInfo = databaseMetadata.getTableMetadata(
 						table.getName(),
-						( table.getSchema() == null ) ? defaultSchema : table.getSchema(),
-						( table.getCatalog() == null ) ? defaultCatalog : table.getCatalog(),
-								table.isQuoted()
-
-					);
+						tableSchema,
+						tableCatalog,
+						table.isQuoted()
+				);
 				if ( tableInfo == null ) {
 					script.add(
 							table.sqlCreateString(
 									dialect,
 									mapping,
-									defaultCatalog,
-									defaultSchema
+									tableCatalog,
+									tableSchema
 								)
 						);
 				}
@@ -1142,8 +1151,8 @@ public class Configuration implements Serializable {
 							dialect,
 							mapping,
 							tableInfo,
-							defaultCatalog,
-							defaultSchema
+							tableCatalog,
+							tableSchema
 						);
 					while ( subiter.hasNext() ) {
 						script.add( subiter.next() );
@@ -1161,12 +1170,14 @@ public class Configuration implements Serializable {
 		iter = getTableMappings();
 		while ( iter.hasNext() ) {
 			Table table = (Table) iter.next();
+			String tableSchema = ( table.getSchema() == null ) ? defaultSchema : table.getSchema() ;
+			String tableCatalog = ( table.getCatalog() == null ) ? defaultCatalog : table.getCatalog();
 			if ( table.isPhysicalTable() ) {
 
 				TableMetadata tableInfo = databaseMetadata.getTableMetadata(
 						table.getName(),
-						table.getSchema(),
-						table.getCatalog(),
+						tableSchema,
+						tableCatalog,
 						table.isQuoted()
 					);
 
@@ -1187,8 +1198,8 @@ public class Configuration implements Serializable {
 										fk.sqlCreateString(
 												dialect,
 												mapping,
-												defaultCatalog,
-												defaultSchema
+												tableCatalog,
+												tableSchema
 											)
 									);
 							}
@@ -1210,8 +1221,8 @@ public class Configuration implements Serializable {
 							index.sqlCreateString(
 									dialect,
 									mapping,
-									defaultCatalog,
-									defaultSchema
+									tableCatalog,
+									tableSchema
 							)
 					);
 				}
@@ -1297,15 +1308,26 @@ public class Configuration implements Serializable {
 	}
 
 	protected void secondPassCompile() throws MappingException {
-        LOG.trace("Starting secondPassCompile() processing");
+		LOG.trace( "Starting secondPassCompile() processing" );
 
 		//process default values first
 		{
 			if ( !isDefaultProcessed ) {
 				//use global delimiters if orm.xml declare it
-				final Object isDelimited = reflectionManager.getDefaults().get( "delimited-identifier" );
+				Map defaults = reflectionManager.getDefaults();
+				final Object isDelimited = defaults.get( "delimited-identifier" );
 				if ( isDelimited != null && isDelimited == Boolean.TRUE ) {
 					getProperties().put( Environment.GLOBALLY_QUOTED_IDENTIFIERS, "true" );
+				}
+				// Set default schema name if orm.xml declares it.
+				final String schema = (String) defaults.get( "schema" );
+				if ( StringHelper.isNotEmpty( schema ) ) {
+					getProperties().put( Environment.DEFAULT_SCHEMA, schema );
+				}
+				// Set default catalog name if orm.xml declares it.
+				final String catalog = (String) defaults.get( "catalog" );
+				if ( StringHelper.isNotEmpty( catalog ) ) {
+					getProperties().put( Environment.DEFAULT_CATALOG, catalog );
 				}
 
 				AnnotationBinder.bindDefaults( createMappings() );
@@ -1382,7 +1404,7 @@ public class Configuration implements Serializable {
 	 * an entity having a PK made of a ManyToOne ...).
 	 */
 	private void processFkSecondPassInOrder() {
-        LOG.debugf("Processing fk mappings (*ToOne and JoinedSubclass)");
+		LOG.debug("Processing fk mappings (*ToOne and JoinedSubclass)");
 		List<FkSecondPass> fkSecondPasses = getFKSecondPassesOnly();
 
 		if ( fkSecondPasses.size() == 0 ) {
@@ -1492,16 +1514,14 @@ public class Configuration implements Serializable {
 		RuntimeException originalException = null;
 		while ( !stopProcess ) {
 			List<FkSecondPass> failingSecondPasses = new ArrayList<FkSecondPass>();
-			Iterator<FkSecondPass> it = endOfQueueFkSecondPasses.listIterator();
-			while ( it.hasNext() ) {
-				final FkSecondPass pass = it.next();
+			for ( FkSecondPass pass : endOfQueueFkSecondPasses ) {
 				try {
 					pass.doSecondPass( classes );
 				}
-				catch ( RecoverableException e ) {
+				catch (RecoverableException e) {
 					failingSecondPasses.add( pass );
 					if ( originalException == null ) {
-						originalException = ( RuntimeException ) e.getCause();
+						originalException = (RuntimeException) e.getCause();
 					}
 				}
 			}
@@ -1560,10 +1580,10 @@ public class Configuration implements Serializable {
 	}
 
 	private void originalSecondPassCompile() throws MappingException {
-        LOG.debugf("Processing extends queue");
+		LOG.debug( "Processing extends queue" );
 		processExtendsQueue();
 
-        LOG.debugf("Processing collection mappings");
+		LOG.debug( "Processing collection mappings" );
 		Iterator itr = secondPasses.iterator();
 		while ( itr.hasNext() ) {
 			SecondPass sp = (SecondPass) itr.next();
@@ -1573,7 +1593,7 @@ public class Configuration implements Serializable {
 			}
 		}
 
-        LOG.debugf("Processing native query and ResultSetMapping mappings");
+		LOG.debug( "Processing native query and ResultSetMapping mappings" );
 		itr = secondPasses.iterator();
 		while ( itr.hasNext() ) {
 			SecondPass sp = (SecondPass) itr.next();
@@ -1581,7 +1601,7 @@ public class Configuration implements Serializable {
 			itr.remove();
 		}
 
-        LOG.debugf("Processing association property references");
+		LOG.debug( "Processing association property references" );
 
 		itr = propertyReferences.iterator();
 		while ( itr.hasNext() ) {
@@ -1603,10 +1623,10 @@ public class Configuration implements Serializable {
 
 		//TODO: Somehow add the newly created foreign keys to the internal collection
 
-        LOG.debugf("Processing foreign key constraints");
+		LOG.debug( "Processing foreign key constraints" );
 
 		itr = getTableMappings();
-		Set done = new HashSet();
+		Set<ForeignKey> done = new HashSet<ForeignKey>();
 		while ( itr.hasNext() ) {
 			secondPassCompileForeignKeys( (Table) itr.next(), done );
 		}
@@ -1614,7 +1634,7 @@ public class Configuration implements Serializable {
 	}
 
 	private int processExtendsQueue() {
-        LOG.debugf("Processing extends queue");
+		LOG.debug( "Processing extends queue" );
 		int added = 0;
 		ExtendsQueueEntry extendsQueueEntry = findPossibleExtends();
 		while ( extendsQueueEntry != null ) {
@@ -1624,7 +1644,7 @@ public class Configuration implements Serializable {
 
 		if ( extendsQueue.size() > 0 ) {
 			Iterator iterator = extendsQueue.keySet().iterator();
-			StringBuffer buf = new StringBuffer( "Following super classes referenced in extends not found: " );
+			StringBuilder buf = new StringBuilder( "Following super classes referenced in extends not found: " );
 			while ( iterator.hasNext() ) {
 				final ExtendsQueueEntry entry = ( ExtendsQueueEntry ) iterator.next();
 				buf.append( entry.getExplicitName() );
@@ -1655,7 +1675,7 @@ public class Configuration implements Serializable {
 		return null;
 	}
 
-	protected void secondPassCompileForeignKeys(Table table, Set done) throws MappingException {
+	protected void secondPassCompileForeignKeys(Table table, Set<ForeignKey> done) throws MappingException {
 		table.createForeignKeys();
 		Iterator iter = table.getForeignKeyIterator();
 		while ( iter.hasNext() ) {
@@ -1671,7 +1691,7 @@ public class Configuration implements Serializable {
 							" does not specify the referenced entity"
 						);
 				}
-                LOG.debugf("Resolving reference to class: %s", referencedEntityName);
+				LOG.debugf( "Resolving reference to class: %s", referencedEntityName );
 				PersistentClass referencedClass = classes.get( referencedEntityName );
 				if ( referencedClass == null ) {
 					throw new MappingException(
@@ -1699,15 +1719,19 @@ public class Configuration implements Serializable {
 	 * {@link SessionFactory} will be immutable, so changes made to {@code this} {@link Configuration} after
 	 * building the {@link SessionFactory} will not affect it.
 	 *
-	 * @return The build {@link SessionFactory}
+	 * @param serviceRegistry The registry of services to be used in creating this session factory.
+	 *
+	 * @return The built {@link SessionFactory}
 	 *
 	 * @throws HibernateException usually indicates an invalid configuration or invalid mapping information
 	 */
 	public SessionFactory buildSessionFactory(ServiceRegistry serviceRegistry) throws HibernateException {
-        LOG.debugf("Preparing to build session factory with filters : %s", filterDefinitions);
+		LOG.debugf( "Preparing to build session factory with filters : %s", filterDefinitions );
 
 		secondPassCompile();
-        if (!metadataSourceQueue.isEmpty()) LOG.incompleteMappingMetadataCacheProcessing();
+		if ( !metadataSourceQueue.isEmpty() ) {
+			LOG.incompleteMappingMetadataCacheProcessing();
+		}
 
 		validate();
 
@@ -1740,7 +1764,9 @@ public class Configuration implements Serializable {
 	public SessionFactory buildSessionFactory() throws HibernateException {
 		Environment.verifyProperties( properties );
 		ConfigurationHelper.resolvePlaceHolders( properties );
-		final ServiceRegistry serviceRegistry =  new ServiceRegistryBuilder( properties ).buildServiceRegistry();
+		final ServiceRegistry serviceRegistry =  new ServiceRegistryBuilder()
+				.applySettings( properties )
+				.buildServiceRegistry();
 		setSessionFactoryObserver(
 				new SessionFactoryObserver() {
 					@Override
@@ -1749,7 +1775,7 @@ public class Configuration implements Serializable {
 
 					@Override
 					public void sessionFactoryClosed(SessionFactory factory) {
-						( (BasicServiceRegistryImpl) serviceRegistry ).destroy();
+						( (StandardServiceRegistryImpl) serviceRegistry ).destroy();
 					}
 				}
 		);
@@ -1757,7 +1783,7 @@ public class Configuration implements Serializable {
 	}
 
 	/**
-	 * Rterieve the configured {@link Interceptor}.
+	 * Retrieve the configured {@link Interceptor}.
 	 *
 	 * @return The current {@link Interceptor}
 	 */
@@ -1768,7 +1794,7 @@ public class Configuration implements Serializable {
 	/**
 	 * Set the current {@link Interceptor}
 	 *
-	 * @param interceptor The {@link Interceptor} to use for the {@link #buildSessionFactory) built}
+	 * @param interceptor The {@link Interceptor} to use for the {@link #buildSessionFactory built}
 	 * {@link SessionFactory}.
 	 *
 	 * @return this for method chaining
@@ -1792,7 +1818,7 @@ public class Configuration implements Serializable {
 	 *
 	 * @param propertyName The name of the property
 	 *
-	 * @return The value curently associated with that property name; may be null.
+	 * @return The value currently associated with that property name; may be null.
 	 */
 	public String getProperty(String propertyName) {
 		return properties.getProperty( propertyName );
@@ -1860,7 +1886,7 @@ public class Configuration implements Serializable {
 			Element node = (Element) itr.next();
 			String name = node.attributeValue( "name" );
 			String value = node.getText().trim();
-            LOG.debugf("%s=%s", name, value);
+			LOG.debugf( "%s=%s", name, value );
 			properties.setProperty( name, value );
 			if ( !name.startsWith( "hibernate" ) ) {
 				properties.setProperty( "hibernate." + name, value );
@@ -1898,7 +1924,7 @@ public class Configuration implements Serializable {
 	 * @see #doConfigure(java.io.InputStream, String)
 	 */
 	public Configuration configure(String resource) throws HibernateException {
-        LOG.configuringFromResource(resource);
+		LOG.configuringFromResource( resource );
 		InputStream stream = getConfigurationInputStream( resource );
 		return doConfigure( stream, resource );
 	}
@@ -1917,7 +1943,7 @@ public class Configuration implements Serializable {
 	 * @throws HibernateException Generally indicates we cannot find the named resource
 	 */
 	protected InputStream getConfigurationInputStream(String resource) throws HibernateException {
-        LOG.configurationResource(resource);
+		LOG.configurationResource( resource );
 		return ConfigHelper.getResourceAsStream( resource );
 	}
 
@@ -1934,7 +1960,7 @@ public class Configuration implements Serializable {
 	 * @see #doConfigure(java.io.InputStream, String)
 	 */
 	public Configuration configure(URL url) throws HibernateException {
-        LOG.configuringFromUrl(url);
+		LOG.configuringFromUrl( url );
 		try {
 			return doConfigure( url.openStream(), url.toString() );
 		}
@@ -1956,7 +1982,7 @@ public class Configuration implements Serializable {
 	 * @see #doConfigure(java.io.InputStream, String)
 	 */
 	public Configuration configure(File configFile) throws HibernateException {
-        LOG.configuringFromFile(configFile.getName());
+		LOG.configuringFromFile( configFile.getName() );
 		try {
 			return doConfigure( new FileInputStream( configFile ), configFile.toString() );
 		}
@@ -1979,11 +2005,11 @@ public class Configuration implements Serializable {
 	 */
 	protected Configuration doConfigure(InputStream stream, String resourceName) throws HibernateException {
 		try {
-			List errors = new ArrayList();
-			Document document = xmlHelper.createSAXReader( resourceName, errors, entityResolver )
+			ErrorLogger errorLogger = new ErrorLogger( resourceName );
+			Document document = xmlHelper.createSAXReader( errorLogger,  entityResolver )
 					.read( new InputSource( stream ) );
-			if ( errors.size() != 0 ) {
-				throw new MappingException( "invalid configuration", (Throwable) errors.get( 0 ) );
+			if ( errorLogger.hasErrors() ) {
+				throw new MappingException( "invalid configuration", errorLogger.getErrors().get( 0 ) );
 			}
 			doConfigure( document );
 		}
@@ -1995,7 +2021,7 @@ public class Configuration implements Serializable {
 				stream.close();
 			}
 			catch (IOException ioe) {
-                LOG.unableToCloseInputStreamForResource(resourceName, ioe);
+				LOG.unableToCloseInputStreamForResource( resourceName, ioe );
 			}
 		}
 		return this;
@@ -2011,7 +2037,7 @@ public class Configuration implements Serializable {
 	 * @throws HibernateException if there is problem in accessing the file.
 	 */
 	public Configuration configure(org.w3c.dom.Document document) throws HibernateException {
-        LOG.configuringFromXmlDocument();
+		LOG.configuringFromXmlDocument();
 		return doConfigure( xmlHelper.createDOMReader().read( document ) );
 	}
 
@@ -2039,8 +2065,8 @@ public class Configuration implements Serializable {
 			parseSecurity( secNode );
 		}
 
-        LOG.configuredSessionFactory(name);
-        LOG.debugf("Properties: %s", properties);
+		LOG.configuredSessionFactory( name );
+		LOG.debugf( "Properties: %s", properties );
 
 		return this;
 	}
@@ -2079,27 +2105,27 @@ public class Configuration implements Serializable {
 
 		if ( resourceAttribute != null ) {
 			final String resourceName = resourceAttribute.getValue();
-            LOG.debugf("Session-factory config [%s] named resource [%s] for mapping", name, resourceName);
+			LOG.debugf( "Session-factory config [%s] named resource [%s] for mapping", name, resourceName );
 			addResource( resourceName );
 		}
 		else if ( fileAttribute != null ) {
 			final String fileName = fileAttribute.getValue();
-            LOG.debugf("Session-factory config [%s] named file [%s] for mapping", name, fileName);
+			LOG.debugf( "Session-factory config [%s] named file [%s] for mapping", name, fileName );
 			addFile( fileName );
 		}
 		else if ( jarAttribute != null ) {
 			final String jarFileName = jarAttribute.getValue();
-            LOG.debugf("Session-factory config [%s] named jar file [%s] for mapping", name, jarFileName);
+			LOG.debugf( "Session-factory config [%s] named jar file [%s] for mapping", name, jarFileName );
 			addJar( new File( jarFileName ) );
 		}
 		else if ( packageAttribute != null ) {
 			final String packageName = packageAttribute.getValue();
-            LOG.debugf("Session-factory config [%s] named package [%s] for mapping", name, packageName);
+			LOG.debugf( "Session-factory config [%s] named package [%s] for mapping", name, packageName );
 			addPackage( packageName );
 		}
 		else if ( classAttribute != null ) {
 			final String className = classAttribute.getValue();
-            LOG.debugf("Session-factory config [%s] named class [%s] for mapping", name, className);
+			LOG.debugf( "Session-factory config [%s] named class [%s] for mapping", name, className );
 			try {
 				addAnnotatedClass( ReflectHelper.classForName( className ) );
 			}
@@ -2117,8 +2143,8 @@ public class Configuration implements Serializable {
 
 	private void parseSecurity(Element secNode) {
 		String contextId = secNode.attributeValue( "context" );
-        setProperty(Environment.JACC_CONTEXTID, contextId);
-        LOG.jaccContextId(contextId);
+		setProperty( Environment.JACC_CONTEXTID, contextId );
+		LOG.jaccContextId( contextId );
 		JACCConfiguration jcfg = new JACCConfiguration( contextId );
 		Iterator grantElements = secNode.elementIterator();
 		while ( grantElements.hasNext() ) {
@@ -2207,8 +2233,6 @@ public class Configuration implements Serializable {
 	 * @param collectionRole The name of the collection to which we should associate these cache settings
 	 * @param concurrencyStrategy The cache strategy to use
 	 * @param region The name of the cache region to use
-	 *
-	 * @return this for method chaining
 	 */
 	public void setCollectionCacheConcurrencyStrategy(String collectionRole, String concurrencyStrategy, String region) {
 		caches.add( new CacheHolder( collectionRole, concurrencyStrategy, region, false, false ) );
@@ -2234,6 +2258,8 @@ public class Configuration implements Serializable {
 
 	/**
 	 * Create an object-oriented view of the configuration properties
+	 *
+	 * @param serviceRegistry The registry of services to be used in building these settings.
 	 *
 	 * @return The build settings
 	 */
@@ -2283,7 +2309,7 @@ public class Configuration implements Serializable {
 	 *
 	 * @return This configuration's IdentifierGeneratorFactory.
 	 */
-	public DefaultIdentifierGeneratorFactory getIdentifierGeneratorFactory() {
+	public MutableIdentifierGeneratorFactory getIdentifierGeneratorFactory() {
 		return identifierGeneratorFactory;
 	}
 
@@ -2416,6 +2442,14 @@ public class Configuration implements Serializable {
 		this.sessionFactoryObserver = sessionFactoryObserver;
 	}
 
+	public CurrentTenantIdentifierResolver getCurrentTenantIdentifierResolver() {
+		return currentTenantIdentifierResolver;
+	}
+
+	public void setCurrentTenantIdentifierResolver(CurrentTenantIdentifierResolver currentTenantIdentifierResolver) {
+		this.currentTenantIdentifierResolver = currentTenantIdentifierResolver;
+	}
+
 
 	// Mappings impl ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -2423,6 +2457,7 @@ public class Configuration implements Serializable {
 	 * Internal implementation of the Mappings interface giving access to the Configuration's internal
 	 * <tt>metadata repository</tt> state ({@link Configuration#classes}, {@link Configuration#tables}, etc).
 	 */
+	@SuppressWarnings( {"deprecation", "unchecked"})
 	protected class MappingsImpl implements ExtendedMappings, Serializable {
 
 		private String schemaName;
@@ -2714,7 +2749,7 @@ public class Configuration implements Serializable {
 		public void addTypeDef(String typeName, String typeClass, Properties paramMap) {
 			TypeDef def = new TypeDef( typeClass, paramMap );
 			typeDefs.put( typeName, def );
-            LOG.debugf("Added %s with class %s", typeName, typeClass);
+			LOG.debugf( "Added %s with class %s", typeName, typeClass );
 		}
 
 		public Map getFilterDefinitions() {
@@ -2772,7 +2807,7 @@ public class Configuration implements Serializable {
 		}
 
 		public String getLogicalTableName(Table table) throws MappingException {
-			return getLogicalTableName( table.getQuotedSchema(), table.getCatalog(), table.getQuotedName() );
+			return getLogicalTableName( table.getQuotedSchema(), table.getQuotedCatalog(), table.getQuotedName() );
 		}
 
 		private String getLogicalTableName(String schema, String catalog, String physicalName) throws MappingException {
@@ -2805,7 +2840,7 @@ public class Configuration implements Serializable {
 		}
 
 		private String buildTableNameKey(String schema, String catalog, String finalName) {
-			StringBuffer keyBuilder = new StringBuffer();
+			StringBuilder keyBuilder = new StringBuilder();
 			if (schema != null) keyBuilder.append( schema );
 			keyBuilder.append( ".");
 			if (catalog != null) keyBuilder.append( catalog );
@@ -2887,7 +2922,7 @@ public class Configuration implements Serializable {
 					finalName = ( String ) binding.logicalToPhysical.get( logicalName );
 				}
 				String key = buildTableNameKey(
-						currentTable.getQuotedSchema(), currentTable.getCatalog(), currentTable.getQuotedName()
+						currentTable.getQuotedSchema(), currentTable.getQuotedCatalog(), currentTable.getQuotedName()
 				);
 				TableDescription description = ( TableDescription ) tableNameBinding.get( key );
 				if ( description != null ) {
@@ -2916,7 +2951,7 @@ public class Configuration implements Serializable {
 					logical = ( String ) binding.physicalToLogical.get( physicalName );
 				}
 				String key = buildTableNameKey(
-						currentTable.getQuotedSchema(), currentTable.getCatalog(), currentTable.getQuotedName()
+						currentTable.getQuotedSchema(), currentTable.getQuotedCatalog(), currentTable.getQuotedName()
 				);
 				description = ( TableDescription ) tableNameBinding.get( key );
 				if ( description != null ) {
@@ -2961,7 +2996,7 @@ public class Configuration implements Serializable {
 			extendsQueue.put( entry, null );
 		}
 
-		public DefaultIdentifierGeneratorFactory getIdentifierGeneratorFactory() {
+		public MutableIdentifierGeneratorFactory getIdentifierGeneratorFactory() {
 			return identifierGeneratorFactory;
 		}
 
@@ -2980,9 +3015,6 @@ public class Configuration implements Serializable {
 		public Properties getConfigurationProperties() {
 			return properties;
 		}
-
-
-		private Boolean useNewGeneratorMappings;
 
 		public void addDefaultGenerator(IdGenerator generator) {
 			this.addGenerator( generator );
@@ -3034,13 +3066,29 @@ public class Configuration implements Serializable {
 			map.put( property.getPropertyName(), property );
 		}
 
+		private Boolean useNewGeneratorMappings;
+
 		@SuppressWarnings({ "UnnecessaryUnboxing" })
 		public boolean useNewGeneratorMappings() {
 			if ( useNewGeneratorMappings == null ) {
-				final String booleanName = getConfigurationProperties().getProperty( AvailableSettings.USE_NEW_ID_GENERATOR_MAPPINGS );
+				final String booleanName = getConfigurationProperties()
+						.getProperty( AvailableSettings.USE_NEW_ID_GENERATOR_MAPPINGS );
 				useNewGeneratorMappings = Boolean.valueOf( booleanName );
 			}
 			return useNewGeneratorMappings.booleanValue();
+		}
+
+		private Boolean forceDiscriminatorInSelectsByDefault;
+
+		@Override
+		@SuppressWarnings( {"UnnecessaryUnboxing"})
+		public boolean forceDiscriminatorInSelectsByDefault() {
+			if ( forceDiscriminatorInSelectsByDefault == null ) {
+				final String booleanName = getConfigurationProperties()
+						.getProperty( AvailableSettings.FORCE_DISCRIMINATOR_IN_SELECTS_BY_DEFAULT );
+				forceDiscriminatorInSelectsByDefault = Boolean.valueOf( booleanName );
+			}
+			return forceDiscriminatorInSelectsByDefault.booleanValue();
 		}
 
 		public IdGenerator getGenerator(String name) {
@@ -3060,13 +3108,17 @@ public class Configuration implements Serializable {
 		public void addGenerator(IdGenerator generator) {
 			if ( !defaultNamedGenerators.contains( generator.getName() ) ) {
 				IdGenerator old = namedGenerators.put( generator.getName(), generator );
-                if (old != null) LOG.duplicateGeneratorName(old.getName());
+				if ( old != null ) {
+					LOG.duplicateGeneratorName( old.getName() );
+				}
 			}
 		}
 
 		public void addGeneratorTable(String name, Properties params) {
 			Object old = generatorTables.put( name, params );
-            if (old != null) LOG.duplicateGeneratorTable(name);
+			if ( old != null ) {
+				LOG.duplicateGeneratorTable( name );
+			}
 		}
 
 		public Properties getGeneratorTableProperties(String name, Map<String, Properties> localGeneratorTables) {
@@ -3085,7 +3137,9 @@ public class Configuration implements Serializable {
 
 		public void addJoins(PersistentClass persistentClass, Map<String, Join> joins) {
 			Object old = Configuration.this.joins.put( persistentClass.getEntityName(), joins );
-            if (old != null) LOG.duplicateJoins(persistentClass.getEntityName());
+			if ( old != null ) {
+				LOG.duplicateJoins( persistentClass.getEntityName() );
+			}
 		}
 
 		public AnnotatedClassType getClassType(XClass clazz) {
@@ -3338,7 +3392,7 @@ public class Configuration implements Serializable {
 		}
 
 		private void processHbmXmlQueue() {
-            LOG.debugf("Processing hbm.xml files");
+			LOG.debug( "Processing hbm.xml files" );
 			for ( Map.Entry<XmlDocument, Set<String>> entry : hbmMetadataToEntityNamesMap.entrySet() ) {
 				// Unfortunately we have to create a Mappings instance for each iteration here
 				processHbmXml( entry.getKey(), entry.getValue() );
@@ -3349,7 +3403,7 @@ public class Configuration implements Serializable {
 
 		private void processHbmXml(XmlDocument metadataXml, Set<String> entityNames) {
 			try {
-				HbmBinder.bindRoot( metadataXml, createMappings(), CollectionHelper.EMPTY_MAP, entityNames );
+				HbmBinder.bindRoot( metadataXml, createMappings(), Collections.EMPTY_MAP, entityNames );
 			}
 			catch ( MappingException me ) {
 				throw new InvalidMappingException(
@@ -3368,7 +3422,7 @@ public class Configuration implements Serializable {
 		}
 
 		private void processAnnotatedClassesQueue() {
-            LOG.debugf("Process annotated classes");
+			LOG.debug( "Process annotated classes" );
 			//bind classes in the correct order calculating some inheritance state
 			List<XClass> orderedClasses = orderAndFillHierarchy( annotatedClasses );
 			Mappings mappings = createMappings();

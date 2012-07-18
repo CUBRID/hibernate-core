@@ -10,6 +10,7 @@ import javax.persistence.FieldResult;
 import javax.persistence.Id;
 import javax.persistence.NamedNativeQueries;
 import javax.persistence.NamedNativeQuery;
+import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.SqlResultSetMapping;
 
@@ -17,24 +18,25 @@ import javax.persistence.SqlResultSetMapping;
  * @author Gavin King
  */
 @Entity(name = "Item")
-	@SqlResultSetMapping(name = "getItem", entities =
-		@EntityResult(entityClass = org.hibernate.ejb.test.Item.class, fields = {
-			@FieldResult(name = "name", column = "itemname"),
-			@FieldResult(name = "descr", column = "itemdescription")
-			})
+@SqlResultSetMapping(name = "getItem", entities =
+	@EntityResult(entityClass = org.hibernate.ejb.test.Item.class, fields = {
+		@FieldResult(name = "name", column = "itemname"),
+		@FieldResult(name = "descr", column = "itemdescription")
+	})
 )
 @NamedNativeQueries({
-		@NamedNativeQuery(
-				name = "nativeItem1",
-				query = "select name as itemname, descr as itemdescription from Item",
-				resultSetMapping = "getItem"
-		),
-		@NamedNativeQuery(
-				name = "nativeItem2",
-				query = "select * from Item",
-				resultClass = Item.class
-		)
+	@NamedNativeQuery(
+		name = "nativeItem1",
+		query = "select name as itemname, descr as itemdescription from Item",
+		resultSetMapping = "getItem"
+	),
+	@NamedNativeQuery(
+		name = "nativeItem2",
+		query = "select * from Item",
+		resultClass = Item.class
+	)
 })
+@NamedQuery(name = "query-construct", query = "select new Item(i.name,i.descr) from Item i")
 //@Cache(region="Item", usage=NONSTRICT_READ_WRITE)
 public class Item implements Serializable {
 

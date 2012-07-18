@@ -1,14 +1,15 @@
 package org.hibernate.envers.test.integration.notinsertable.manytoone;
 
-import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.test.AbstractEntityTest;
-import org.hibernate.envers.test.Priority;
+import java.util.Arrays;
+import javax.persistence.EntityManager;
+
 import org.junit.Test;
 
-import javax.persistence.EntityManager;
-import java.util.Arrays;
+import org.hibernate.ejb.Ejb3Configuration;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
+import org.hibernate.envers.test.Priority;
 
-public class ManyToOneNotInsertable extends AbstractEntityTest {
+public class ManyToOneNotInsertable extends BaseEnversJPAFunctionalTestCase {
     private Integer mto_id1;
     private Integer type_id1;
     private Integer type_id2;

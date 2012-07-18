@@ -1,8 +1,12 @@
 package org.hibernate.envers.test.integration.query;
 
+import javax.persistence.EntityManager;
+
+import org.junit.Test;
+
 import org.hibernate.ejb.Ejb3Configuration;
 import org.hibernate.envers.query.AuditEntity;
-import org.hibernate.envers.test.AbstractEntityTest;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
 import org.hibernate.envers.test.Priority;
 import org.hibernate.envers.test.entities.StrIntTestEntity;
 import org.hibernate.envers.test.entities.ids.EmbId;
@@ -10,14 +14,11 @@ import org.hibernate.envers.test.entities.onetomany.CollectionRefEdEntity;
 import org.hibernate.envers.test.entities.onetomany.CollectionRefIngEntity;
 import org.hibernate.envers.test.entities.onetomany.ids.SetRefEdEmbIdEntity;
 import org.hibernate.envers.test.entities.onetomany.ids.SetRefIngEmbIdEntity;
-import org.junit.Test;
-
-import javax.persistence.EntityManager;
 
 /**
  * @author Lukasz Antoniak (lukasz dot antoniak at gmail dot com)
  */
-public class NullPropertyQuery extends AbstractEntityTest {
+public class NullPropertyQuery extends BaseEnversJPAFunctionalTestCase {
     private Integer idSimplePropertyNull = null;
     private Integer idSimplePropertyNotNull = null;
     private EmbId idMulticolumnReferenceToParentNull = new EmbId(0, 1);

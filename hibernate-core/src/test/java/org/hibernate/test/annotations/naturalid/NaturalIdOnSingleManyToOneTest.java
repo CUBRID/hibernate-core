@@ -26,21 +26,22 @@ package org.hibernate.test.annotations.naturalid;
 import java.util.List;
 
 import org.jboss.logging.Logger;
+import org.junit.After;
+import org.junit.Test;
 
 import org.hibernate.Criteria;
+import org.hibernate.Hibernate;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.criterion.Restrictions;
 import org.hibernate.metadata.ClassMetadata;
 import org.hibernate.stat.Statistics;
-
-import org.junit.Test;
-
 import org.hibernate.testing.TestForIssue;
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -53,6 +54,18 @@ import static org.junit.Assert.assertTrue;
 @TestForIssue( jiraKey = "ANN-750" )
 public class NaturalIdOnSingleManyToOneTest extends BaseCoreFunctionalTestCase {
 	private static final Logger log = Logger.getLogger( NaturalIdOnSingleManyToOneTest.class );
+
+	@After
+	public void cleanupData() {
+		super.cleanupCache();
+		Session s = sessionFactory().openSession();
+		s.beginTransaction();
+		s.createQuery( "delete NaturalIdOnManyToOne" ).executeUpdate();
+		s.createQuery( "delete Citizen" ).executeUpdate();
+		s.createQuery( "delete State" ).executeUpdate();
+		s.getTransaction().commit();
+		s.close();
+	}
 
 	@Test
 	public void testMappingProperties() {
@@ -90,6 +103,15 @@ public class NaturalIdOnSingleManyToOneTest extends BaseCoreFunctionalTestCase {
 		s.persist( singleManyToOne );
 		tx.commit();
 		s.close();
+		
+		s.getSessionFactory().getCache().evictNaturalIdRegions();
+		Statistics stats = sessionFactory().getStatistics();
+		stats.setStatisticsEnabled( true );
+		stats.clear();
+		assertEquals( "NaturalId cache puts should be zero", 0, stats.getNaturalIdCachePutCount() );
+		assertEquals( "NaturalId cache hits should be zero", 0, stats.getNaturalIdCacheHitCount() );
+		assertEquals( "NaturalId Cache Puts", 0, stats.getNaturalIdCachePutCount() );
+		assertEquals( "NaturalId cache misses should be zero", 0, stats.getNaturalIdCacheMissCount() );
 
 		s = openSession();
 		tx = s.beginTransaction();
@@ -97,36 +119,20 @@ public class NaturalIdOnSingleManyToOneTest extends BaseCoreFunctionalTestCase {
 		criteria.add( Restrictions.naturalId().set( "citizen", c1 ) );
 		criteria.setCacheable( true );
 
-		Statistics stats = sessionFactory().getStatistics();
-		stats.setStatisticsEnabled( true );
-		stats.clear();
-		assertEquals(
-				"Cache hits should be empty", 0, stats
-						.getQueryCacheHitCount()
-		);
-
 		// first query
 		List results = criteria.list();
 		assertEquals( 1, results.size() );
-		assertEquals(
-				"Cache hits should be empty", 0, stats
-						.getQueryCacheHitCount()
-		);
-		assertEquals(
-				"First query should be a miss", 1, stats
-						.getQueryCacheMissCount()
-		);
-		assertEquals(
-				"Query result should be added to cache", 1, stats
-						.getQueryCachePutCount()
-		);
+		assertEquals( "NaturalId Cache Hits", 0, stats.getNaturalIdCacheHitCount() );
+		assertEquals( "NaturalId Cache Misses", 1, stats.getNaturalIdCacheMissCount() );
+		assertEquals( "NaturalId Cache Puts", 2, stats.getNaturalIdCachePutCount() ); // one for Citizen, one for NaturalIdOnManyToOne
+		assertEquals( "NaturalId Cache Queries", 1, stats.getNaturalIdQueryExecutionCount() );
 
-		// query a second time - result should be cached
+		// query a second time - result should be in session cache
 		criteria.list();
-		assertEquals(
-				"Cache hits should be empty", 1, stats
-						.getQueryCacheHitCount()
-		);
+		assertEquals( "NaturalId Cache Hits", 0, stats.getNaturalIdCacheHitCount() );
+		assertEquals( "NaturalId Cache Misses", 1, stats.getNaturalIdCacheMissCount() );
+		assertEquals( "NaturalId Cache Puts", 2, stats.getNaturalIdCachePutCount() );
+		assertEquals( "NaturalId Cache Queries", 1, stats.getNaturalIdQueryExecutionCount() );
 
 		// cleanup
 		tx.rollback();

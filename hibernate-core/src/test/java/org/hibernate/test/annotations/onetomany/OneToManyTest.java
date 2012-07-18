@@ -32,6 +32,9 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import org.junit.Assert;
+import org.junit.Test;
+
 import org.hibernate.Hibernate;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
@@ -39,17 +42,14 @@ import org.hibernate.Transaction;
 import org.hibernate.mapping.Column;
 import org.hibernate.mapping.PersistentClass;
 import org.hibernate.mapping.Table;
-
-import org.junit.Test;
-
-import org.hibernate.testing.FailureExpected;
-import org.hibernate.testing.TestForIssue;
-import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 import org.hibernate.test.annotations.Customer;
 import org.hibernate.test.annotations.Discount;
 import org.hibernate.test.annotations.Passport;
 import org.hibernate.test.annotations.Ticket;
 import org.hibernate.test.annotations.TicketComparator;
+import org.hibernate.testing.FailureExpected;
+import org.hibernate.testing.TestForIssue;
+import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -114,10 +114,17 @@ public class OneToManyTest extends BaseCoreFunctionalTestCase {
 		s.flush();
 		s.clear();
 
-		//testing @OrderBy with explicit values including Formula
+		// Assert the primary key value relationship amongst the 3 streets...
+		Assert.assertTrue( rochechoir.getId() < chmpsElysees.getId() );
+		Assert.assertTrue( chmpsElysees.getId() < grandeArmee.getId() );
+
 		paris = ( City ) s.get( City.class, paris.getId() );
+
+		// City.streets is defined to be ordered by name primarily...
 		assertEquals( 3, paris.getStreets().size() );
 		assertEquals( chmpsElysees.getStreetName(), paris.getStreets().get( 0 ).getStreetName() );
+		assertEquals( grandeArmee.getStreetName(), paris.getStreets().get( 1 ).getStreetName() );
+		// City.mainStreets is defined to be ordered by street id
 		List<Street> mainStreets = paris.getMainStreets();
 		assertEquals( 2, mainStreets.size() );
 		Integer previousId = -1;
@@ -446,7 +453,7 @@ public class OneToManyTest extends BaseCoreFunctionalTestCase {
 	}
 
 	@Test
-	@FailureExpected(jiraKey = "HHH-3577")
+	@TestForIssue( jiraKey = "HHH-4394" )
 	public void testOrderByOnSuperclassProperty() {
 		OrganisationUser user = new OrganisationUser();
 		user.setFirstName( "Emmanuel" );

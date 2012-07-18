@@ -5,18 +5,16 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 
 import org.jboss.logging.Logger;
+import org.junit.Test;
 
 import org.hibernate.cfg.Configuration;
 import org.hibernate.dialect.SQLServerDialect;
-
-import org.junit.Test;
-
-import org.hibernate.testing.ServiceRegistryBuilder;
-import org.hibernate.testing.TestForIssue;
-import org.hibernate.testing.junit4.BaseUnitTestCase;
 import org.hibernate.test.annotations.id.sequences.entities.Bunny;
 import org.hibernate.test.annotations.id.sequences.entities.PointyTooth;
 import org.hibernate.test.annotations.id.sequences.entities.TwinkleToes;
+import org.hibernate.testing.ServiceRegistryBuilder;
+import org.hibernate.testing.TestForIssue;
+import org.hibernate.testing.junit4.BaseUnitTestCase;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -44,11 +42,11 @@ public class JoinColumnOverrideTest extends BaseUnitTestCase {
                 log.debug(s);
 			}
 			String expectedSqlPointyTooth = "create table PointyTooth (id numeric(128,0) not null, " +
-					"bunny_id numeric(128,0) null, primary key (id))";
+					"bunny_id numeric(128,0), primary key (id))";
 			assertEquals("Wrong SQL", expectedSqlPointyTooth, schema[1]);
 
 			String expectedSqlTwinkleToes = "create table TwinkleToes (id numeric(128,0) not null, " +
-			"bunny_id numeric(128,0) null, primary key (id))";
+			"bunny_id numeric(128,0), primary key (id))";
 			assertEquals("Wrong SQL", expectedSqlTwinkleToes, schema[2]);
 		}
 		catch (Exception e) {

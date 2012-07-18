@@ -24,17 +24,21 @@
 package org.hibernate.test.dialect.function;
 import java.util.Arrays;
 import java.util.List;
-import junit.framework.TestCase;
+
+import org.junit.Test;
+
 import org.hibernate.dialect.function.AnsiTrimEmulationFunction;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * TODO : javadoc
  *
  * @author Steve Ebersole
  */
-public class AnsiTrimEmulationFunctionTest extends TestCase {
+public class AnsiTrimEmulationFunctionTest  {
 	private static final String trimSource = "a.column";
-
+    @Test
 	public void testBasicSqlServerProcessing() {
 		AnsiTrimEmulationFunction function = new AnsiTrimEmulationFunction();
 
@@ -64,7 +68,7 @@ public class AnsiTrimEmulationFunctionTest extends TestCase {
 		expected = expectedPostTrimPrefix + "ltrim(rtrim(" + expectedTrimPrep + "))" + expectedPostTrimSuffix;
 		assertEquals( expected, rendered );
 	}
-
+    @Test
 	public void testBasicSybaseProcessing() {
 		AnsiTrimEmulationFunction function = new AnsiTrimEmulationFunction(
 				AnsiTrimEmulationFunction.LTRIM,

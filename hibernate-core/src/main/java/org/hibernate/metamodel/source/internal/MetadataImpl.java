@@ -38,37 +38,34 @@ import org.hibernate.SessionFactory;
 import org.hibernate.cache.spi.RegionFactory;
 import org.hibernate.cache.spi.access.AccessType;
 import org.hibernate.cfg.NamingStrategy;
-import org.hibernate.dialect.Dialect;
 import org.hibernate.engine.ResultSetMappingDefinition;
-import org.hibernate.engine.jdbc.spi.JdbcServices;
 import org.hibernate.engine.spi.FilterDefinition;
 import org.hibernate.engine.spi.NamedQueryDefinition;
 import org.hibernate.engine.spi.NamedSQLQueryDefinition;
-import org.hibernate.id.factory.DefaultIdentifierGeneratorFactory;
 import org.hibernate.id.factory.IdentifierGeneratorFactory;
+import org.hibernate.id.factory.spi.MutableIdentifierGeneratorFactory;
 import org.hibernate.internal.CoreMessageLogger;
-import org.hibernate.internal.util.Value;
+import org.hibernate.internal.util.ValueHolder;
 import org.hibernate.metamodel.MetadataSourceProcessingOrder;
 import org.hibernate.metamodel.MetadataSources;
 import org.hibernate.metamodel.SessionFactoryBuilder;
-import org.hibernate.metamodel.binding.AbstractPluralAttributeBinding;
+import org.hibernate.metamodel.binding.AttributeBinding;
+import org.hibernate.metamodel.binding.EntityBinding;
+import org.hibernate.metamodel.binding.FetchProfile;
+import org.hibernate.metamodel.binding.IdGenerator;
 import org.hibernate.metamodel.binding.PluralAttributeBinding;
+import org.hibernate.metamodel.binding.TypeDef;
+import org.hibernate.metamodel.domain.BasicType;
+import org.hibernate.metamodel.domain.Type;
+import org.hibernate.metamodel.relational.Database;
 import org.hibernate.metamodel.source.MappingDefaults;
 import org.hibernate.metamodel.source.MetaAttributeContext;
 import org.hibernate.metamodel.source.MetadataImplementor;
 import org.hibernate.metamodel.source.MetadataSourceProcessor;
 import org.hibernate.metamodel.source.annotations.AnnotationMetadataSourceProcessorImpl;
 import org.hibernate.metamodel.source.hbm.HbmMetadataSourceProcessorImpl;
-import org.hibernate.metamodel.binding.AttributeBinding;
-import org.hibernate.metamodel.binding.EntityBinding;
-import org.hibernate.metamodel.binding.FetchProfile;
-import org.hibernate.metamodel.binding.IdGenerator;
-import org.hibernate.metamodel.binding.TypeDef;
-import org.hibernate.metamodel.domain.BasicType;
-import org.hibernate.metamodel.domain.Type;
-import org.hibernate.metamodel.relational.Database;
 import org.hibernate.persister.spi.PersisterClassResolver;
-import org.hibernate.service.BasicServiceRegistry;
+import org.hibernate.service.ServiceRegistry;
 import org.hibernate.service.classloading.spi.ClassLoaderService;
 import org.hibernate.type.TypeResolver;
 
@@ -86,17 +83,17 @@ public class MetadataImpl implements MetadataImplementor, Serializable {
 			MetadataImpl.class.getName()
 	);
 
-	private final BasicServiceRegistry serviceRegistry;
+	private final ServiceRegistry serviceRegistry;
 	private final Options options;
 
-	private final Value<ClassLoaderService> classLoaderService;
-	private final Value<PersisterClassResolver> persisterClassResolverService;
+	private final ValueHolder<ClassLoaderService> classLoaderService;
+	private final ValueHolder<PersisterClassResolver> persisterClassResolverService;
 
 	private TypeResolver typeResolver = new TypeResolver();
 
 	private SessionFactoryBuilder sessionFactoryBuilder = new SessionFactoryBuilderImpl( this );
 
-	private final DefaultIdentifierGeneratorFactory identifierGeneratorFactory;
+	private final MutableIdentifierGeneratorFactory identifierGeneratorFactory;
 
 	private final Database database;
 
@@ -120,10 +117,10 @@ public class MetadataImpl implements MetadataImplementor, Serializable {
     private boolean globallyQuotedIdentifiers = false;
 
 	public MetadataImpl(MetadataSources metadataSources, Options options) {
-		Dialect dialect = metadataSources.getServiceRegistry().getService( JdbcServices.class ).getDialect();
-		this.serviceRegistry = metadataSources.getServiceRegistry();
+		this.serviceRegistry =  metadataSources.getServiceRegistry();
 		this.options = options;
-		this.identifierGeneratorFactory = new DefaultIdentifierGeneratorFactory( dialect );
+		this.identifierGeneratorFactory = serviceRegistry.getService( MutableIdentifierGeneratorFactory.class );
+				//new DefaultIdentifierGeneratorFactory( dialect );
 		this.database = new Database( options );
 
 		this.mappingDefaults = new MappingDefaultsImpl();
@@ -142,16 +139,16 @@ public class MetadataImpl implements MetadataImplementor, Serializable {
 			};
 		}
 
-		this.classLoaderService = new org.hibernate.internal.util.Value<ClassLoaderService>(
-				new org.hibernate.internal.util.Value.DeferredInitializer<ClassLoaderService>() {
+		this.classLoaderService = new ValueHolder<ClassLoaderService>(
+				new ValueHolder.DeferredInitializer<ClassLoaderService>() {
 					@Override
 					public ClassLoaderService initialize() {
 						return serviceRegistry.getService( ClassLoaderService.class );
 					}
 				}
 		);
-		this.persisterClassResolverService = new org.hibernate.internal.util.Value<PersisterClassResolver>(
-				new org.hibernate.internal.util.Value.DeferredInitializer<PersisterClassResolver>() {
+		this.persisterClassResolverService = new ValueHolder<PersisterClassResolver>(
+				new ValueHolder.DeferredInitializer<PersisterClassResolver>() {
 					@Override
 					public PersisterClassResolver initialize() {
 						return serviceRegistry.getService( PersisterClassResolver.class );
@@ -344,7 +341,7 @@ public class MetadataImpl implements MetadataImplementor, Serializable {
 	}
 
 	@Override
-	public BasicServiceRegistry getServiceRegistry() {
+	public ServiceRegistry getServiceRegistry() {
 		return serviceRegistry;
 	}
 
@@ -361,9 +358,9 @@ public class MetadataImpl implements MetadataImplementor, Serializable {
 	}
 
 	@Override
-	public Value<Class<?>> makeClassReference(final String className) {
-		return new Value<Class<?>>(
-				new Value.DeferredInitializer<Class<?>>() {
+	public ValueHolder<Class<?>> makeClassReference(final String className) {
+		return new ValueHolder<Class<?>>(
+				new ValueHolder.DeferredInitializer<Class<?>>() {
 					@Override
 					public Class<?> initialize() {
 						return classLoaderService.getValue().classForName( className );
@@ -438,7 +435,7 @@ public class MetadataImpl implements MetadataImplementor, Serializable {
 		if ( importName == null || entityName == null ) {
 			throw new IllegalArgumentException( "Import name or entity name is null" );
 		}
-		LOG.trace( "Import: " + importName + " -> " + entityName );
+		LOG.tracev( "Import: {0} -> {1}", importName, entityName );
 		String old = imports.put( importName, entityName );
 		if ( old != null ) {
 			LOG.debug( "import name [" + importName + "] overrode previous [{" + old + "}]" );
@@ -585,8 +582,8 @@ public class MetadataImpl implements MetadataImplementor, Serializable {
 			return true;
 		}
 
-		private final Value<AccessType> regionFactorySpecifiedDefaultAccessType = new Value<AccessType>(
-				new Value.DeferredInitializer<AccessType>() {
+		private final ValueHolder<AccessType> regionFactorySpecifiedDefaultAccessType = new ValueHolder<AccessType>(
+				new ValueHolder.DeferredInitializer<AccessType>() {
 					@Override
 					public AccessType initialize() {
 						final RegionFactory regionFactory = getServiceRegistry().getService( RegionFactory.class );

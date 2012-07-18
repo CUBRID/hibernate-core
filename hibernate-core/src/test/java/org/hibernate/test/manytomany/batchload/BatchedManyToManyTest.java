@@ -25,6 +25,9 @@ package org.hibernate.test.manytomany.batchload;
 
 import java.util.List;
 
+import junit.framework.Assert;
+import org.junit.Test;
+
 import org.hibernate.EmptyInterceptor;
 import org.hibernate.Hibernate;
 import org.hibernate.Interceptor;
@@ -39,10 +42,6 @@ import org.hibernate.engine.jdbc.spi.JdbcCoordinator;
 import org.hibernate.loader.collection.BatchingCollectionInitializer;
 import org.hibernate.persister.collection.AbstractCollectionPersister;
 import org.hibernate.stat.CollectionStatistics;
-
-import org.junit.Test;
-import junit.framework.Assert;
-
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.hibernate.testing.junit4.ExtraAssertions.assertClassAssignability;
@@ -139,7 +138,6 @@ public class BatchedManyToManyTest extends BaseCoreFunctionalTestCase {
 		s.getTransaction().commit();
 		s.close();
 
-		cleanupTestData();
 	}
 
 	protected void prepareTestData() {
@@ -176,5 +174,10 @@ public class BatchedManyToManyTest extends BaseCoreFunctionalTestCase {
 		s.createQuery( "delete Group" ).executeUpdate();
 		s.getTransaction().commit();
 		s.close();
+	}
+
+	@Override
+	protected boolean isCleanupTestDataRequired() {
+		return true;
 	}
 }

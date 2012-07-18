@@ -23,21 +23,22 @@
  */
 package org.hibernate.envers.test.integration.secondary.ids;
 
+import java.util.Arrays;
+import java.util.Iterator;
+import javax.persistence.EntityManager;
+
+import org.junit.Test;
+
 import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.test.AbstractEntityTest;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
 import org.hibernate.envers.test.Priority;
 import org.hibernate.envers.test.entities.ids.EmbId;
 import org.hibernate.mapping.Join;
-import org.junit.Test;
-
-import javax.persistence.EntityManager;
-import java.util.Arrays;
-import java.util.Iterator;
 
 /**
  * @author Adam Warski (adam at warski dot org)
  */
-public class EmbIdSecondary extends AbstractEntityTest {
+public class EmbIdSecondary extends BaseEnversJPAFunctionalTestCase {
     private EmbId id;
 
     public void configure(Ejb3Configuration cfg) {

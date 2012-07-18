@@ -23,12 +23,11 @@
  */
 package org.hibernate.test.annotations.bytecode;
 
+import org.junit.Test;
+
 import org.hibernate.Hibernate;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-
-import org.junit.Test;
-
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertFalse;
@@ -52,11 +51,6 @@ public class ProxyBreakingTest extends BaseCoreFunctionalTestCase {
 		assertFalse( Hibernate.isInitialized( h ) );
 		tx.rollback();
 		s.close();
-	}
-
-	@Override
-	protected Class[] getAnnotatedClasses() {
-		return new Class[0];
 	}
 
 	@Override

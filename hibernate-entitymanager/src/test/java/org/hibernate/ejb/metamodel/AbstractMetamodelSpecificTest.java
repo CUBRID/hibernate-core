@@ -33,7 +33,8 @@ public abstract class AbstractMetamodelSpecificTest extends BaseEntityManagerFun
 		return new Class[] {
 				Address.class, Alias.class, Country.class, CreditCard.class, Customer.class,
 				Info.class, LineItem.class, Order.class, Phone.class, Product.class,
-				ShelfLife.class, Spouse.class, VersionedEntity.class
+				ShelfLife.class, Spouse.class, Thing.class, ThingWithQuantity.class,
+				VersionedEntity.class
 		};
 	}
 }

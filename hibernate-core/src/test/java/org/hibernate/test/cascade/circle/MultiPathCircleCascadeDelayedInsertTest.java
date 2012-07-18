@@ -23,12 +23,6 @@
  */
 package org.hibernate.test.cascade.circle;
 
-import org.hibernate.JDBCException;
-import org.hibernate.PropertyValueException;
-import org.hibernate.TransientObjectException;
-
-import static org.junit.Assert.assertTrue;
-
 /**
  * @author Gail Badner
  */
@@ -40,18 +34,4 @@ public class MultiPathCircleCascadeDelayedInsertTest extends MultiPathCircleCasc
 		};
 	}
 
-	@Override
-	protected void checkExceptionFromNullValueForNonNullable(Exception ex, boolean checkNullability, boolean isNullValue ) {
-		if ( checkNullability ) {
-			if ( isNullValue ) {
-				assertTrue( ex instanceof PropertyValueException );
-			}
-			else {
-				assertTrue( ex instanceof TransientObjectException );
-			}
-		}
-		else {
-			assertTrue( ex instanceof JDBCException || ex instanceof TransientObjectException );
-		}
-	}
 }

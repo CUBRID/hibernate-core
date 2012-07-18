@@ -24,10 +24,6 @@
  */
 package org.hibernate.ejb.test;
 
-import javax.persistence.EntityManager;
-import javax.persistence.EntityNotFoundException;
-import javax.persistence.FlushModeType;
-import javax.persistence.Query;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
@@ -36,6 +32,14 @@ import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import javax.persistence.EntityExistsException;
+import javax.persistence.EntityManager;
+import javax.persistence.EntityNotFoundException;
+import javax.persistence.FlushModeType;
+import javax.persistence.PersistenceException;
+import javax.persistence.Query;
+
+import org.junit.Test;
 
 import org.hibernate.FlushMode;
 import org.hibernate.HibernateException;
@@ -44,10 +48,6 @@ import org.hibernate.ejb.AvailableSettings;
 import org.hibernate.ejb.HibernateEntityManager;
 import org.hibernate.ejb.HibernateEntityManagerFactory;
 import org.hibernate.stat.Statistics;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import org.hibernate.testing.TestForIssue;
 
 import static org.junit.Assert.assertEquals;
@@ -86,7 +86,7 @@ public class EntityManagerTest extends BaseEntityManagerFunctionalTestCase {
 	@Override
 	public Map<String, String> getCachedCollections() {
 		Map<String, String> result = new HashMap<String, String>();
-		result.put( Item.class.getName() + ".distributors", "read-write, RegionName" );
+		result.put( Item.class.getName() + ".distributors", "read-write,"+Item.class.getName() + ".distributors" );
 		return result;
 	}
 
@@ -318,7 +318,7 @@ public class EntityManagerTest extends BaseEntityManagerFunctionalTestCase {
 	public void testGet() throws Exception {
 		EntityManager em = getOrCreateEntityManager();
 		em.getTransaction().begin();
-		Item item = ( Item ) em.getReference( Item.class, "nonexistentone" );
+		Item item = em.getReference( Item.class, "nonexistentone" );
 		try {
 			item.getDescr();
 			em.getTransaction().commit();
@@ -391,4 +391,58 @@ public class EntityManagerTest extends BaseEntityManagerFunctionalTestCase {
 		assertEquals( "MANUAL", em.getProperties().get( AvailableSettings.FLUSH_MODE ) );
 		em.close();
 	}
+
+    @Test
+    public void testPersistExisting() throws Exception {
+        EntityManager em = getOrCreateEntityManager();
+        em.getTransaction().begin();
+        Wallet w = new Wallet();
+        w.setBrand( "Lacoste" );
+        w.setModel( "Minimic" );
+        w.setSerial( "0100202002" );
+        em.persist( w );
+        w = new Wallet();
+        w.setBrand( "Lacoste" );
+        w.setModel( "Minimic" );
+        w.setSerial( "0100202002" );
+        try {
+            em.persist( w );
+        }
+        catch ( EntityExistsException eee ) {
+            //success
+            if ( em.getTransaction() != null ) {
+                em.getTransaction().rollback();
+            }
+            em.close();
+            return;
+        }
+        try {
+            em.getTransaction().commit();
+            fail( "Should have raised an exception" );
+        }
+        catch ( PersistenceException pe ) {
+        }
+        finally {
+            em.close();
+        }
+    }
+
+	@Test
+	public void testFactoryClosed() throws Exception {
+		EntityManager em = createIsolatedEntityManager();
+		assertTrue( em.isOpen() );
+		assertTrue( em.getEntityManagerFactory().isOpen());
+
+		em.getEntityManagerFactory().close();	// closing the entity manager factory should close the EM
+		assertFalse(em.isOpen());
+
+		try {
+			em.close();
+			fail("closing entity manager that uses a closed session factory, must throw IllegalStateException");
+		}
+		catch( IllegalStateException expected) {
+			// success
+		}
+	}
+
 }

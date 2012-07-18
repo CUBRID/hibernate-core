@@ -23,6 +23,8 @@
  */
 package org.hibernate.test.ops;
 
+import org.junit.Test;
+
 import org.hibernate.Hibernate;
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
@@ -31,9 +33,6 @@ import org.hibernate.bytecode.instrumentation.internal.FieldInterceptionHelper;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
 import org.hibernate.criterion.Projections;
-
-import org.junit.Test;
-
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
@@ -483,6 +482,44 @@ public class SaveOrUpdateTest extends BaseCoreFunctionalTestCase {
 		s.delete( s.get( Node.class, "2:child" ) );
 		s.delete( s.get( Node.class, "1:parent" ) );
 		s.getTransaction().commit();
+		s.close();
+	}
+
+	@Test
+	public void testSavePersistentEntityWithUpdate() {
+		clearCounts();
+
+		Session s = openSession();
+		Transaction tx = s.beginTransaction();
+		NumberedNode root = new NumberedNode( "root" );
+		root.setName( "a name" );
+		s.saveOrUpdate( root );
+		tx.commit();
+		s.close();
+
+		assertInsertCount( 1 );
+		assertUpdateCount( 0 );
+		clearCounts();
+
+		s = openSession();
+		tx = s.beginTransaction();
+		root = ( NumberedNode ) s.get( NumberedNode.class, root.getId() );
+		assertEquals( "a name", root.getName() );
+		root.setName( "a new name" );
+		s.save( root );
+		tx.commit();
+		s.close();
+
+		assertInsertCount( 0 );
+		assertUpdateCount( 1 );
+		clearCounts();
+
+		s = openSession();
+		tx = s.beginTransaction();
+		root = ( NumberedNode ) s.get( NumberedNode.class, root.getId() );
+		assertEquals( "a new name", root.getName() );
+		s.delete( root );
+		tx.commit();
 		s.close();
 	}
 

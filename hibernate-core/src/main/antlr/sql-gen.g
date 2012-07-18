@@ -25,7 +25,7 @@ options {
 {
 
    /** the buffer resulting SQL statement is written to */
-	private StringBuffer buf = new StringBuffer();
+	private StringBuilder buf = new StringBuilder();
 
 	protected void out(String s) {
 		buf.append(s);
@@ -71,7 +71,7 @@ options {
 		// moved this impl into the subclass...
 	}
 
-	protected StringBuffer getStringBuffer() {
+	protected StringBuilder getStringBuilder() {
 		return buf;
 	}
 
@@ -309,19 +309,28 @@ inList
 	;
 	
 simpleExprList
-	: { out("("); } (e:simpleExpr { separator(e," , "); } )* { out(")"); }
+	: { out("("); } (e:simpleOrTupleExpr { separator(e," , "); } )* { out(")"); }
 	;
+
+simpleOrTupleExpr
+    : simpleExpr
+    | tupleExpr
+    ;
 
 // A simple expression, or a sub-select with parens around it.
 expr
 	: simpleExpr
-	| #( VECTOR_EXPR { out("("); } (e:expr { separator(e," , "); } )*  { out(")"); } )
+	| tupleExpr
 	| parenSelect
 	| #(ANY { out("any "); } quantified )
 	| #(ALL { out("all "); } quantified )
 	| #(SOME { out("some "); } quantified )
 	;
-	
+
+tupleExpr
+    : #( VECTOR_EXPR { out("("); } (e:expr { separator(e," , "); } )*  { out(")"); } )
+    ;
+
 quantified
 	: { out("("); } ( sqlToken | selectStatement ) { out(")"); } 
 	;
@@ -361,7 +370,7 @@ arithmeticExpr
 	: additiveExpr
 	| multiplicativeExpr
 //	| #(CONCAT { out("("); } expr ( { out("||"); } expr )+ { out(")"); } )
-	| #(UNARY_MINUS { out("-"); } expr)
+	| #(UNARY_MINUS { out("-"); } nestedExprAfterMinusDiv)
 	| caseExpr
 	;
 
@@ -427,6 +436,7 @@ addrExpr
 	| i:ALIAS_REF { out(i); }
 	| j:INDEX_OP { out(j); }
 	| v:RESULT_VARIABLE_REF { out(v); }
+	| mcr:mapComponentReference { out(mcr); }
 	;
 
 sqlToken

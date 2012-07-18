@@ -23,22 +23,23 @@
  */
 package org.hibernate.envers.test.integration.collection;
 
+import java.util.Arrays;
+import javax.persistence.EntityManager;
+
+import org.junit.Test;
+
 import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.test.AbstractEntityTest;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase ;
 import org.hibernate.envers.test.Priority;
 import org.hibernate.envers.test.entities.collection.EnumSetEntity;
 import org.hibernate.envers.test.entities.collection.EnumSetEntity.E1;
 import org.hibernate.envers.test.entities.collection.EnumSetEntity.E2;
 import org.hibernate.envers.test.tools.TestTools;
-import org.junit.Test;
-
-import javax.persistence.EntityManager;
-import java.util.Arrays;
 
 /**
  * @author Adam Warski (adam at warski dot org)
  */
-public class EnumSet extends AbstractEntityTest {
+public class EnumSet extends BaseEnversJPAFunctionalTestCase  {
     private Integer sse1_id;
 
     public void configure(Ejb3Configuration cfg) {

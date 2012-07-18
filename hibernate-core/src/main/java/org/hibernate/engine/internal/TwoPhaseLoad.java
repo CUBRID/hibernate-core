@@ -40,13 +40,13 @@ import org.hibernate.engine.spi.PersistenceContext;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.engine.spi.Status;
+import org.hibernate.event.service.spi.EventListenerGroup;
+import org.hibernate.event.service.spi.EventListenerRegistry;
 import org.hibernate.event.spi.EventType;
 import org.hibernate.event.spi.PostLoadEvent;
 import org.hibernate.event.spi.PostLoadEventListener;
 import org.hibernate.event.spi.PreLoadEvent;
 import org.hibernate.event.spi.PreLoadEventListener;
-import org.hibernate.event.service.spi.EventListenerGroup;
-import org.hibernate.event.service.spi.EventListenerRegistry;
 import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.persister.entity.EntityPersister;
 import org.hibernate.pretty.MessageHelper;
@@ -64,9 +64,7 @@ import org.hibernate.type.TypeHelper;
  */
 public final class TwoPhaseLoad {
 
-    private static final CoreMessageLogger LOG = Logger.getMessageLogger(
-			CoreMessageLogger.class, TwoPhaseLoad.class.getName()
-	);
+	private static final CoreMessageLogger LOG = Logger.getMessageLogger( CoreMessageLogger.class, TwoPhaseLoad.class.getName() );
 
 	private TwoPhaseLoad() {}
 
@@ -103,11 +101,11 @@ public final class TwoPhaseLoad {
 				lazyPropertiesAreUnfetched
 			);
 
-        if (LOG.isTraceEnabled() && version != null) {
+		if ( LOG.isTraceEnabled() && version != null ) {
 			String versionStr = persister.isVersioned()
 					? persister.getVersionType().toLoggableString( version, session.getFactory() )
-			        : "null";
-            LOG.trace("Version: " + versionStr);
+					: "null";
+			LOG.tracev( "Version: {0}", versionStr );
 		}
 
 	}
@@ -126,22 +124,42 @@ public final class TwoPhaseLoad {
 			final SessionImplementor session,
 			final PreLoadEvent preLoadEvent,
 			final PostLoadEvent postLoadEvent) throws HibernateException {
-
-		//TODO: Should this be an InitializeEntityEventListener??? (watch out for performance!)
-
 		final PersistenceContext persistenceContext = session.getPersistenceContext();
-		EntityEntry entityEntry = persistenceContext.getEntry(entity);
+		final EntityEntry entityEntry = persistenceContext.getEntry(entity);
+		final EntityPersister persister = entityEntry.getPersister();
+		final Serializable id = entityEntry.getId();
+
+//		persistenceContext.getNaturalIdHelper().startingLoad( persister, id );
+//		try {
+			doInitializeEntity( entity, entityEntry, readOnly, session, preLoadEvent, postLoadEvent );
+//		}
+//		finally {
+//			persistenceContext.getNaturalIdHelper().endingLoad( persister, id );
+//		}
+	}
+
+	private static void doInitializeEntity(
+			final Object entity,
+			final EntityEntry entityEntry,
+			final boolean readOnly,
+			final SessionImplementor session,
+			final PreLoadEvent preLoadEvent,
+			final PostLoadEvent postLoadEvent) throws HibernateException {
 		if ( entityEntry == null ) {
 			throw new AssertionFailure( "possible non-threadsafe access to the session" );
 		}
+
+		final PersistenceContext persistenceContext = session.getPersistenceContext();
 		EntityPersister persister = entityEntry.getPersister();
 		Serializable id = entityEntry.getId();
 		Object[] hydratedState = entityEntry.getLoadedState();
 
-        if (LOG.isDebugEnabled()) LOG.debugf(
-				"Resolving associations for %s",
-				MessageHelper.infoString( persister, id, session.getFactory() )
-		);
+		if ( LOG.isDebugEnabled() ) {
+			LOG.debugf(
+					"Resolving associations for %s",
+					MessageHelper.infoString( persister, id, session.getFactory() )
+			);
+		}
 
 		Type[] types = persister.getPropertyTypes();
 		for ( int i = 0; i < hydratedState.length; i++ ) {
@@ -170,10 +188,12 @@ public final class TwoPhaseLoad {
 		final SessionFactoryImplementor factory = session.getFactory();
 		if ( persister.hasCache() && session.getCacheMode().isPutEnabled() ) {
 
-            if (LOG.isDebugEnabled()) LOG.debugf(
-					"Adding entity to second-level cache: %s",
-					MessageHelper.infoString( persister, id, session.getFactory() )
-			);
+			if ( LOG.isDebugEnabled() ) {
+				LOG.debugf(
+						"Adding entity to second-level cache: %s",
+						MessageHelper.infoString( persister, id, session.getFactory() )
+				);
+			}
 
 			Object version = Versioning.getVersion(hydratedState, persister);
 			CacheEntry entry = new CacheEntry(
@@ -215,6 +235,14 @@ public final class TwoPhaseLoad {
 			}
 		}
 
+		if ( persister.hasNaturalIdentifier() ) {
+			persistenceContext.getNaturalIdHelper().cacheNaturalIdCrossReferenceFromLoad(
+					persister,
+					id,
+					persistenceContext.getNaturalIdHelper().extractNaturalIdValues( hydratedState, persister )
+			);
+		}
+
 		boolean isReallyReadOnly = readOnly;
 		if ( !persister.isMutable() ) {
 			isReallyReadOnly = true;
@@ -250,7 +278,7 @@ public final class TwoPhaseLoad {
 				entity,
 				entityEntry.isLoadedWithLazyPropertiesUnfetched(),
 				session
-			);
+		);
 
 		if ( session.isEventSource() ) {
 			postLoadEvent.setEntity( entity ).setId( id ).setPersister( persister );
@@ -265,7 +293,7 @@ public final class TwoPhaseLoad {
 			}
 		}
 
-        if ( LOG.isDebugEnabled() ) {
+		if ( LOG.isDebugEnabled() ) {
 			LOG.debugf(
 					"Done materializing entity %s",
 					MessageHelper.infoString( persister, id, session.getFactory() )
@@ -275,7 +303,6 @@ public final class TwoPhaseLoad {
 		if ( factory.getStatistics().isStatisticsEnabled() ) {
 			factory.getStatisticsImplementor().loadEntity( persister.getEntityName() );
 		}
-
 	}
 
 	private static boolean useMinimalPuts(SessionImplementor session, EntityEntry entityEntry) {

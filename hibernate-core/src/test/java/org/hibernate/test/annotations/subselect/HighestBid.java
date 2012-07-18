@@ -28,6 +28,7 @@
 package org.hibernate.test.annotations.subselect;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+
 import org.hibernate.annotations.Subselect;
 import org.hibernate.annotations.Synchronize;
 
@@ -36,7 +37,7 @@ import org.hibernate.annotations.Synchronize;
  *
  */
 @Entity
-@Subselect("select item.name as name, max(bid.amount) as amount from item, bid where bid.itemId = item.id group by item.name")
+@Subselect("select Item.name as name, max(Bid.amount) as amount from Item, Bid where Bid.itemId = Item.id group by Item.name")
 @Synchronize({"Item", "Bid"})
 public class HighestBid {
 	 

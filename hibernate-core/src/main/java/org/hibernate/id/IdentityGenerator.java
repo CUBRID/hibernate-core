@@ -27,6 +27,7 @@ import java.io.Serializable;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+
 import org.hibernate.AssertionFailure;
 import org.hibernate.HibernateException;
 import org.hibernate.dialect.Dialect;
@@ -98,6 +99,7 @@ public class IdentityGenerator extends AbstractPostInsertGenerator {
 				rs = insert.getGeneratedKeys();
 				return IdentifierGeneratorHelper.getGeneratedIdentity(
 						rs,
+						persister.getIdentifierColumnNames()[0],
 						persister.getIdentifierType()
 				);
 			}
@@ -146,7 +148,11 @@ public class IdentityGenerator extends AbstractPostInsertGenerator {
 			}
 			ResultSet rs = insert.getResultSet();
 			try {
-				return IdentifierGeneratorHelper.getGeneratedIdentity( rs, persister.getIdentifierType() );
+				return IdentifierGeneratorHelper.getGeneratedIdentity(
+						rs,
+						persister.getIdentifierColumnNames()[0],
+						persister.getIdentifierType()
+				);
 			}
 			finally {
 				rs.close();
@@ -188,7 +194,7 @@ public class IdentityGenerator extends AbstractPostInsertGenerator {
 				SessionImplementor session,
 		        ResultSet rs,
 		        Object object) throws SQLException {
-			return IdentifierGeneratorHelper.getGeneratedIdentity( rs, persister.getIdentifierType() );
+			return IdentifierGeneratorHelper.getGeneratedIdentity( rs, null, persister.getIdentifierType() );
 		}
 	}
 

@@ -22,10 +22,12 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate.envers.query.impl;
+
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.NoResultException;
 import javax.persistence.NonUniqueResultException;
+
 import org.hibernate.CacheMode;
 import org.hibernate.FlushMode;
 import org.hibernate.LockMode;
@@ -43,9 +45,11 @@ import org.hibernate.envers.tools.Pair;
 import org.hibernate.envers.tools.Triple;
 import org.hibernate.envers.tools.query.QueryBuilder;
 
+import static org.hibernate.envers.entities.mapper.relation.query.QueryConstants.REFERENCED_ENTITY_ALIAS;
+
 /**
  * @author Adam Warski (adam at warski dot org)
- * @author Hern�n Chanfreau
+ * @author HernпїЅn Chanfreau
  */
 public abstract class AbstractAuditQuery implements AuditQuery {
     protected EntityInstantiator entityInstantiator;
@@ -80,7 +84,7 @@ public abstract class AbstractAuditQuery implements AuditQuery {
 		versionsEntityName = verCfg.getAuditEntCfg().getAuditEntityName(
 				entityName);
 
-		qb = new QueryBuilder(versionsEntityName, "e");
+		qb = new QueryBuilder(versionsEntityName, REFERENCED_ENTITY_ALIAS);
 	}
     
     protected Query buildQuery() {
@@ -191,7 +195,7 @@ public abstract class AbstractAuditQuery implements AuditQuery {
 
 	/**
 	 * Set lock mode
-	 * @param lockMode
+	 * @param lockMode The {@link LockMode} used for this query.
 	 * @return this object
 	 * @deprecated Instead use setLockOptions
 	 */
@@ -202,7 +206,7 @@ public abstract class AbstractAuditQuery implements AuditQuery {
 
 	/**
 	 * Set lock options
-	 * @param lockOptions
+	 * @param lockOptions The @{link LockOptions} used for this query.
 	 * @return this object
 	 */
 	public AuditQuery setLockOptions(LockOptions lockOptions) {
@@ -219,7 +223,7 @@ public abstract class AbstractAuditQuery implements AuditQuery {
         if (cacheMode != null) query.setCacheMode(cacheMode);
         if (timeout != null) query.setTimeout(timeout);
         if (lockOptions != null && lockOptions.getLockMode() != LockMode.NONE) {
-			  query.setLockMode("e", lockOptions.getLockMode());
+			  query.setLockMode(REFERENCED_ENTITY_ALIAS, lockOptions.getLockMode());
 		  }
     }
 }

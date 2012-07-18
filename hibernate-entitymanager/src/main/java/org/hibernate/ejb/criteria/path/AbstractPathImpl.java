@@ -22,6 +22,7 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate.ejb.criteria.path;
+
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
@@ -32,6 +33,7 @@ import javax.persistence.metamodel.Attribute;
 import javax.persistence.metamodel.MapAttribute;
 import javax.persistence.metamodel.PluralAttribute;
 import javax.persistence.metamodel.SingularAttribute;
+
 import org.hibernate.ejb.criteria.CriteriaBuilderImpl;
 import org.hibernate.ejb.criteria.CriteriaQueryCompiler;
 import org.hibernate.ejb.criteria.ParameterRegistry;
@@ -67,7 +69,7 @@ public abstract class AbstractPathImpl<X>
 			PathSource pathSource) {
 		super( criteriaBuilder, javaType );
 		this.pathSource = pathSource;
-		this.typeExpression =  new PathTypeExpression( criteriaBuilder(), getJavaType() );
+		this.typeExpression =  new PathTypeExpression( criteriaBuilder(), getJavaType(), this );
 	}
 
 	public PathSource getPathSource() {
@@ -194,10 +196,10 @@ public abstract class AbstractPathImpl<X>
 		if ( attribute.isCollection() ) {
 			final PluralAttribute<X,Y,?> pluralAttribute = (PluralAttribute<X,Y,?>) attribute;
 			if ( PluralAttribute.CollectionType.MAP.equals( pluralAttribute.getCollectionType() ) ) {
-				return (PluralAttributePath<Y>) get( (MapAttribute<X,?,?>) pluralAttribute );
+				return (PluralAttributePath<Y>) this.<Object,Object,Map<Object, Object>>get( (MapAttribute) pluralAttribute );
 			}
 			else {
-				return (PluralAttributePath<Y>) get( (PluralAttribute) pluralAttribute );
+				return (PluralAttributePath<Y>) this.get( (PluralAttribute) pluralAttribute );
 			}
 		}
 		else {

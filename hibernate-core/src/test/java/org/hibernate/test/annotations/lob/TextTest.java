@@ -23,17 +23,16 @@
  */
 package org.hibernate.test.annotations.lob;
 
+import junit.framework.AssertionFailedError;
+import org.junit.Assert;
+import org.junit.Test;
+
 import org.hibernate.Session;
 import org.hibernate.dialect.SQLServerDialect;
 import org.hibernate.dialect.Sybase11Dialect;
 import org.hibernate.dialect.SybaseASE15Dialect;
 import org.hibernate.dialect.SybaseDialect;
 import org.hibernate.internal.util.collections.ArrayHelper;
-
-import org.junit.Assert;
-import org.junit.Test;
-import junit.framework.AssertionFailedError;
-
 import org.hibernate.testing.RequiresDialect;
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
@@ -134,7 +133,7 @@ public class TextTest extends BaseCoreFunctionalTestCase {
 	}
 
 	private String buildRecursively(int size, char baseChar) {
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		for (int i = 0; i < size; i++) {
 			buff.append(baseChar);
 		}

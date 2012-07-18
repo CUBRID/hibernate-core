@@ -25,23 +25,23 @@ package org.hibernate.test.annotations.onetoone;
 
 import java.util.Iterator;
 
+import org.junit.Test;
+
 import org.hibernate.EmptyInterceptor;
 import org.hibernate.Query;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import org.hibernate.criterion.Restrictions;
 import org.hibernate.mapping.Column;
 import org.hibernate.mapping.Join;
 import org.hibernate.mapping.PersistentClass;
 import org.hibernate.mapping.Table;
-
-import org.junit.Test;
-
-import org.hibernate.testing.TestForIssue;
-import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 import org.hibernate.test.annotations.Customer;
 import org.hibernate.test.annotations.Discount;
 import org.hibernate.test.annotations.Passport;
 import org.hibernate.test.annotations.Ticket;
+import org.hibernate.testing.TestForIssue;
+import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -330,7 +330,7 @@ public class OneToOneTest extends BaseCoreFunctionalTestCase {
 	}
 
 	@Test
-	@TestForIssue( jiraKey = "HHH-5109" )
+	@TestForIssue( jiraKey = "HHH-6723" )
 	public void testPkOneToOneSelectStatementDoesNotGenerateExtraJoin() {
 		// This test uses an interceptor to verify that correct number of joins are generated.
 		Session s = openSession(new JoinCounter(1));
@@ -354,7 +354,32 @@ public class OneToOneTest extends BaseCoreFunctionalTestCase {
 		assertNotNull( address );
 		assertNotNull( address.getOwner() );
 		assertEquals( address.getId(), address.getOwner().getId() );
-		
+
+		s.flush();
+		s.clear();
+
+		owner = ( Owner ) s.createCriteria( Owner.class )
+				.add( Restrictions.idEq( owner.getId() ) )
+				.uniqueResult();
+
+		assertNotNull( owner );
+		assertNotNull( owner.getAddress() );
+		assertEquals( owner.getId(), owner.getAddress().getId() );
+		s.flush();
+		s.clear();
+
+		address = ( OwnerAddress ) s.createCriteria( OwnerAddress.class )
+				.add( Restrictions.idEq( address.getId() ) )
+				.uniqueResult();
+
+		address = ( OwnerAddress ) s.get( OwnerAddress.class, address.getId() );
+		assertNotNull( address );
+		assertNotNull( address.getOwner() );
+		assertEquals( address.getId(), address.getOwner().getId() );
+
+		s.flush();
+		s.clear();
+
 		tx.rollback();
 		s.close();
 	}

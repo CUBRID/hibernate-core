@@ -25,12 +25,11 @@ package org.hibernate.metamodel.source.hbm;
 
 import java.util.List;
 
-import org.hibernate.metamodel.source.LocalBindingContext;
-import org.hibernate.metamodel.source.Origin;
+import org.hibernate.internal.jaxb.mapping.hbm.EntityElement;
+import org.hibernate.internal.jaxb.mapping.hbm.JaxbFetchProfileElement;
 import org.hibernate.metamodel.source.BindingContext;
+import org.hibernate.metamodel.source.LocalBindingContext;
 import org.hibernate.metamodel.source.MetaAttributeContext;
-import org.hibernate.metamodel.source.hbm.jaxb.mapping.EntityElement;
-import org.hibernate.metamodel.source.hbm.jaxb.mapping.XMLFetchProfileElement;
 
 /**
  * Defines features specific to the {@code hbm.xml} variety of a {@link BindingContext}
@@ -44,5 +43,5 @@ public interface HbmBindingContext extends LocalBindingContext {
 
 	public String determineEntityName(EntityElement entityElement);
 
-	public void processFetchProfiles(List<XMLFetchProfileElement> fetchProfiles, String containingEntityName);
+	public void processFetchProfiles(List<JaxbFetchProfileElement> fetchProfiles, String containingEntityName);
 }

@@ -23,25 +23,26 @@
  */
 package org.hibernate.envers.test.integration.reventity;
 
+import java.util.Arrays;
+import java.util.Date;
+import javax.persistence.EntityManager;
+
+import org.junit.Test;
+
 import org.hibernate.ejb.Ejb3Configuration;
 import org.hibernate.envers.AuditReader;
 import org.hibernate.envers.exception.RevisionDoesNotExistException;
-import org.hibernate.envers.test.AbstractEntityTest;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
 import org.hibernate.envers.test.Priority;
 import org.hibernate.envers.test.entities.StrTestEntity;
 import org.hibernate.envers.test.entities.reventity.CustomRevEntityColumnMapping;
-import org.junit.Test;
-
-import javax.persistence.EntityManager;
-import java.util.Arrays;
-import java.util.Date;
 
 /**
  * Test which checks if auditing when the revision number in the revision entity has a @Column annotation with
  * a columnDefinition specified works.
  * @author Adam Warski (adam at warski dot org)
  */
-public class CustomColumnMapping extends AbstractEntityTest {
+public class CustomColumnMapping extends BaseEnversJPAFunctionalTestCase {
     private Integer id;
     private long timestamp1;
     private long timestamp2;

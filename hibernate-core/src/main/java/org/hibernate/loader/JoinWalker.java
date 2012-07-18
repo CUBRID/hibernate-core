@@ -28,18 +28,18 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+
 import org.hibernate.FetchMode;
 import org.hibernate.LockMode;
 import org.hibernate.LockOptions;
 import org.hibernate.MappingException;
 import org.hibernate.dialect.Dialect;
-import org.hibernate.engine.spi.CascadeStyle;
 import org.hibernate.engine.internal.JoinHelper;
+import org.hibernate.engine.spi.CascadeStyle;
 import org.hibernate.engine.spi.LoadQueryInfluencers;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.internal.util.StringHelper;
 import org.hibernate.internal.util.collections.ArrayHelper;
-import org.hibernate.mapping.Join;
 import org.hibernate.persister.collection.CollectionPersister;
 import org.hibernate.persister.collection.QueryableCollection;
 import org.hibernate.persister.entity.EntityPersister;
@@ -898,7 +898,7 @@ public class JoinWalker {
 	 */
 	protected static final String orderBy(List associations)
 	throws MappingException {
-		StringBuffer buf = new StringBuffer();
+		StringBuilder buf = new StringBuilder();
 		Iterator iter = associations.iterator();
 		OuterJoinableAssociation last = null;
 		while ( iter.hasNext() ) {
@@ -930,17 +930,17 @@ public class JoinWalker {
 		if ( buf.length()>0 ) buf.setLength( buf.length()-2 );
 		return buf.toString();
 	}
-	
+
 	/**
 	 * Render the where condition for a (batch) load by identifier / collection key
 	 */
-	protected StringBuffer whereString(String alias, String[] columnNames, int batchSize) {
+	protected StringBuilder whereString(String alias, String[] columnNames, int batchSize) {
 		if ( columnNames.length==1 ) {
 			// if not a composite key, use "foo in (?, ?, ?)" for batching
 			// if no batch, and not a composite key, use "foo = ?"
 			InFragment in = new InFragment().setColumn( alias, columnNames[0] );
 			for ( int i=0; i<batchSize; i++ ) in.addValue("?");
-			return new StringBuffer( in.toFragmentString() );
+			return new StringBuilder( in.toFragmentString() );
 		}
 		else {
 			//a composite key
@@ -948,7 +948,7 @@ public class JoinWalker {
 					.setTableAlias(alias)
 					.setCondition( columnNames, "?" );
 	
-			StringBuffer whereString = new StringBuffer();
+			StringBuilder whereString = new StringBuilder();
 			if ( batchSize==1 ) {
 				// if no batch, use "foo = ? and bar = ?"
 				whereString.append( byId.toFragmentString() );
@@ -1053,7 +1053,7 @@ public class JoinWalker {
 			return "";
 		}
 		else {
-			StringBuffer buf = new StringBuffer( associations.size() * 100 );
+			StringBuilder buf = new StringBuilder( associations.size() * 100 );
 			int entityAliasCount=0;
 			int collectionAliasCount=0;
 			for ( int i=0; i<associations.size(); i++ ) {

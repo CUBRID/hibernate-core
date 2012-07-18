@@ -23,17 +23,18 @@
  */
 package org.hibernate.test.immutable.entitywithmutablecollection;
 import java.util.Iterator;
+
+import org.junit.Test;
+
 import org.hibernate.MappingException;
 import org.hibernate.Session;
 import org.hibernate.StaleObjectStateException;
+import org.hibernate.StaleStateException;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
 import org.hibernate.criterion.Projections;
 import org.hibernate.criterion.Restrictions;
-
-import org.junit.Test;
-
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
@@ -55,7 +56,6 @@ public abstract class AbstractEntityWithManyToManyTest extends BaseCoreFunctiona
 	@Override
 	public void configure(Configuration cfg) {
 		cfg.setProperty( Environment.GENERATE_STATISTICS, "true");
-		cfg.setProperty( Environment.STATEMENT_BATCH_SIZE, "0" );
 	}
 
 	@Override
@@ -71,6 +71,7 @@ public abstract class AbstractEntityWithManyToManyTest extends BaseCoreFunctiona
 		}
 		isPlanVersioned = sessionFactory().getEntityPersister( Plan.class.getName() ).isVersioned();
 		isContractVersioned = sessionFactory().getEntityPersister( Contract.class.getName() ).isVersioned();
+		sessionFactory().getStatistics().clear();
 	}
 
 	@Test
@@ -933,9 +934,12 @@ public abstract class AbstractEntityWithManyToManyTest extends BaseCoreFunctiona
 			t.commit();
 			assertFalse( isContractVersioned );
 		}
-		catch (StaleObjectStateException ex) {
-			assertTrue( isContractVersioned);
+		catch (StaleStateException ex) {
 			t.rollback();
+			assertTrue( isContractVersioned );
+			if ( ! sessionFactory().getSettings().isJdbcBatchVersionedData() ) {
+				assertTrue( StaleObjectStateException.class.isInstance( ex ) );
+			}
 		}
 		s.close();
 

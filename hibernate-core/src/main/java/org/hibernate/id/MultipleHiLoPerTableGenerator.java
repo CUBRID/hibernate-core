@@ -30,24 +30,26 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.Properties;
+
+import org.jboss.logging.Logger;
+
 import org.hibernate.HibernateException;
-import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.LockMode;
 import org.hibernate.MappingException;
 import org.hibernate.cfg.ObjectNameNormalizer;
 import org.hibernate.dialect.Dialect;
-import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.engine.jdbc.internal.FormatStyle;
 import org.hibernate.engine.jdbc.spi.JdbcServices;
 import org.hibernate.engine.jdbc.spi.SqlStatementLogger;
+import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.id.enhanced.AccessCallback;
 import org.hibernate.id.enhanced.OptimizerFactory;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.internal.util.config.ConfigurationHelper;
 import org.hibernate.jdbc.AbstractReturningWork;
 import org.hibernate.jdbc.WorkExecutorVisitable;
 import org.hibernate.mapping.Table;
 import org.hibernate.type.Type;
-import org.jboss.logging.Logger;
 
 /**
  *
@@ -132,7 +134,7 @@ public class MultipleHiLoPerTableGenerator implements PersistentIdentifierGenera
 	}
 
 	public String[] sqlDropStrings(Dialect dialect) throws HibernateException {
-		StringBuffer sqlDropString = new StringBuffer( "drop table " );
+		StringBuilder sqlDropString = new StringBuilder( "drop table " );
 		if ( dialect.supportsIfExistsBeforeTableName() ) {
 			sqlDropString.append( "if exists " );
 		}
@@ -178,7 +180,7 @@ public class MultipleHiLoPerTableGenerator implements PersistentIdentifierGenera
 						rs.close();
 					}
 					catch (SQLException sqle) {
-                        LOG.unableToReadOrInitHiValue(sqle);
+						LOG.unableToReadOrInitHiValue( sqle );
 						throw sqle;
 					}
 					finally {
@@ -196,7 +198,7 @@ public class MultipleHiLoPerTableGenerator implements PersistentIdentifierGenera
 						rows = ups.executeUpdate();
 					}
 					catch (SQLException sqle) {
-                        LOG.error(LOG.unableToUpdateHiValue(tableName), sqle);
+						LOG.error( LOG.unableToUpdateHiValue( tableName ), sqle );
 						throw sqle;
 					}
 					finally {

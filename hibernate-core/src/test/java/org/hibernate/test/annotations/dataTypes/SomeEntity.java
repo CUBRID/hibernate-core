@@ -22,27 +22,32 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate.test.annotations.dataTypes;
+
 import java.util.Date;
 import javax.persistence.Access;
 import javax.persistence.AccessType;
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Lob;
+import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 
 /**
- * TODO : javadoc
- *
  * @author Steve Ebersole
  */
 @Entity
+@Table(name = "SOMEENTITY")
 @Access(AccessType.FIELD)
 public class SomeEntity {
 	@Id
 	@Temporal(TemporalType.DATE)
+	@Column(name = "ID")
 	private java.util.Date id;
+	@Column(name = "TIMEDATA")
 	private java.sql.Time timeData;
+	@Column(name = "TSDATA")
 	private java.sql.Timestamp tsData;
 	@Lob
 	private Byte[] byteData;
@@ -94,5 +99,4 @@ public class SomeEntity {
 	public void setByteData(Byte[] byteData) {
 		this.byteData = byteData;
 	}
-
 }

@@ -36,7 +36,6 @@ import java.util.Set;
 
 import org.jboss.logging.Logger;
 
-import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.MultiTenancyStrategy;
 import org.hibernate.cfg.Environment;
 import org.hibernate.dialect.Dialect;
@@ -49,6 +48,11 @@ import org.hibernate.engine.jdbc.spi.ResultSetWrapper;
 import org.hibernate.engine.jdbc.spi.SchemaNameResolver;
 import org.hibernate.engine.jdbc.spi.SqlExceptionHelper;
 import org.hibernate.engine.jdbc.spi.SqlStatementLogger;
+import org.hibernate.exception.internal.SQLExceptionTypeDelegate;
+import org.hibernate.exception.internal.SQLStateConversionDelegate;
+import org.hibernate.exception.internal.StandardSQLExceptionConverter;
+import org.hibernate.exception.spi.SQLExceptionConverter;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.internal.util.ReflectHelper;
 import org.hibernate.internal.util.config.ConfigurationHelper;
 import org.hibernate.service.jdbc.connections.spi.ConnectionProvider;
@@ -153,7 +157,7 @@ public class JdbcServicesImpl implements JdbcServices, ServiceRegistryAwareServi
 					lobCreatorBuilder = new LobCreatorBuilder( configValues, connection );
 				}
 				catch ( SQLException sqle ) {
-                    LOG.unableToObtainConnectionMetadata(sqle.getMessage());
+					LOG.unableToObtainConnectionMetadata( sqle.getMessage() );
 				}
 				finally {
 					if ( connection != null ) {
@@ -162,7 +166,7 @@ public class JdbcServicesImpl implements JdbcServices, ServiceRegistryAwareServi
 				}
 			}
 			catch ( SQLException sqle ) {
-                LOG.unableToObtainConnectionToQueryMetadata(sqle.getMessage());
+				LOG.unableToObtainConnectionToQueryMetadata( sqle.getMessage() );
 				dialect = dialectFactory.buildDialect( configValues, null );
 			}
 			catch ( UnsupportedOperationException uoe ) {
@@ -185,7 +189,7 @@ public class JdbcServicesImpl implements JdbcServices, ServiceRegistryAwareServi
 		);
 
 		this.sqlStatementLogger =  new SqlStatementLogger( showSQL, formatSQL );
-		this.sqlExceptionHelper = new SqlExceptionHelper( dialect.buildSQLExceptionConverter() );
+
 		this.extractedMetaDataSupport = new ExtractedDatabaseMetaDataImpl(
 				metaSupportsScrollable,
 				metaSupportsGetGeneratedKeys,
@@ -199,6 +203,17 @@ public class JdbcServicesImpl implements JdbcServices, ServiceRegistryAwareServi
 				catalogName,
 				typeInfoSet
 		);
+
+		SQLExceptionConverter sqlExceptionConverter = dialect.buildSQLExceptionConverter();
+		if ( sqlExceptionConverter == null ) {
+			final StandardSQLExceptionConverter converter = new StandardSQLExceptionConverter();
+			sqlExceptionConverter = converter;
+			converter.addDelegate( dialect.buildSQLExceptionConversionDelegate() );
+			converter.addDelegate( new SQLExceptionTypeDelegate( dialect ) );
+			// todo : vary this based on extractedMetaDataSupport.getSqlStateType()
+			converter.addDelegate( new SQLStateConversionDelegate( dialect ) );
+		}
+		this.sqlExceptionHelper = new SqlExceptionHelper( sqlExceptionConverter );
 	}
 
 	private JdbcConnectionAccess buildJdbcConnectionAccess(Map configValues) {
@@ -229,7 +244,7 @@ public class JdbcServicesImpl implements JdbcServices, ServiceRegistryAwareServi
 
 		@Override
 		public void releaseConnection(Connection connection) throws SQLException {
-			connection.close();
+			connectionProvider.closeConnection( connection );
 		}
 	}
 
@@ -247,7 +262,7 @@ public class JdbcServicesImpl implements JdbcServices, ServiceRegistryAwareServi
 
 		@Override
 		public void releaseConnection(Connection connection) throws SQLException {
-			connection.close();
+			connectionProvider.releaseAnyConnection( connection );
 		}
 	}
 
@@ -268,13 +283,13 @@ public class JdbcServicesImpl implements JdbcServices, ServiceRegistryAwareServi
 				return (SchemaNameResolver) ReflectHelper.getDefaultConstructor( resolverClass ).newInstance();
 			}
 			catch ( ClassNotFoundException e ) {
-                LOG.unableToLocateConfiguredSchemaNameResolver(resolverClassName, e.toString());
+				LOG.unableToLocateConfiguredSchemaNameResolver( resolverClassName, e.toString() );
 			}
 			catch ( InvocationTargetException e ) {
-                LOG.unableToInstantiateConfiguredSchemaNameResolver(resolverClassName, e.getTargetException().toString());
+				LOG.unableToInstantiateConfiguredSchemaNameResolver( resolverClassName, e.getTargetException().toString() );
 			}
 			catch ( Exception e ) {
-                LOG.unableToInstantiateConfiguredSchemaNameResolver(resolverClassName, e.toString());
+				LOG.unableToInstantiateConfiguredSchemaNameResolver( resolverClassName, e.toString() );
 			}
 		}
 		return null;

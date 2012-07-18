@@ -10,7 +10,9 @@ import org.hibernate.HibernateException;
 import org.hibernate.LockMode;
 import org.hibernate.LockOptions;
 import org.hibernate.MappingException;
+import org.hibernate.bytecode.spi.EntityInstrumentationMetadata;
 import org.hibernate.cache.spi.access.EntityRegionAccessStrategy;
+import org.hibernate.cache.spi.access.NaturalIdRegionAccessStrategy;
 import org.hibernate.cache.spi.entry.CacheEntryStructure;
 import org.hibernate.cache.spi.entry.UnstructuredCacheEntry;
 import org.hibernate.engine.internal.TwoPhaseLoad;
@@ -24,12 +26,15 @@ import org.hibernate.event.spi.PostLoadEvent;
 import org.hibernate.event.spi.PreLoadEvent;
 import org.hibernate.id.IdentifierGenerator;
 import org.hibernate.id.UUIDHexGenerator;
+import org.hibernate.internal.FilterAliasGenerator;
+import org.hibernate.internal.StaticFilterAliasGenerator;
 import org.hibernate.internal.util.compare.EqualsHelper;
 import org.hibernate.mapping.PersistentClass;
 import org.hibernate.metadata.ClassMetadata;
 import org.hibernate.persister.entity.EntityPersister;
 import org.hibernate.tuple.entity.EntityMetamodel;
 import org.hibernate.tuple.entity.EntityTuplizer;
+import org.hibernate.tuple.entity.NonPojoInstrumentationMetadata;
 import org.hibernate.type.StandardBasicTypes;
 import org.hibernate.type.Type;
 import org.hibernate.type.VersionType;
@@ -44,6 +49,7 @@ public class CustomPersister implements EntityPersister {
 	public CustomPersister(
 			PersistentClass model,
 			EntityRegionAccessStrategy cacheAccessStrategy,
+			NaturalIdRegionAccessStrategy naturalIdRegionAccessStrategy,
 			SessionFactoryImplementor factory,
 			Mapping mapping) {
 		this.factory = factory;
@@ -439,6 +445,14 @@ public class CustomPersister implements EntityPersister {
 	public EntityRegionAccessStrategy getCacheAccessStrategy() {
 		return null;
 	}
+	
+	public boolean hasNaturalIdCache() {
+		return false;
+	}
+
+	public NaturalIdRegionAccessStrategy getNaturalIdCacheAccessStrategy() {
+		return null;
+	}
 
 	public String getRootEntityName() {
 		return "CUSTOMS";
@@ -603,6 +617,12 @@ public class CustomPersister implements EntityPersister {
 	}
 
 	@Override
+	public Serializable loadEntityIdByNaturalId(Object[] naturalIdValues, LockOptions lockOptions,
+			SessionImplementor session) {
+		return null;
+	}
+
+	@Override
 	public Comparator getVersionComparator() {
 		return null;
 	}
@@ -620,5 +640,15 @@ public class CustomPersister implements EntityPersister {
 	@Override
 	public EntityTuplizer getEntityTuplizer() {
 		return null;
+	}
+
+	@Override
+	public EntityInstrumentationMetadata getInstrumentationMetadata() {
+		return new NonPojoInstrumentationMetadata( getEntityName() );
+	}
+
+	@Override
+	public FilterAliasGenerator getFilterAliasGenerator(String rootAlias) {
+		return new StaticFilterAliasGenerator(rootAlias);
 	}
 }

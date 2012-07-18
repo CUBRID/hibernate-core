@@ -25,6 +25,7 @@ package org.hibernate.envers.entities.mapper;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+
 import org.hibernate.collection.spi.PersistentCollection;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.envers.configuration.AuditConfiguration;
@@ -32,6 +33,7 @@ import org.hibernate.envers.reader.AuditReaderImplementor;
 
 /**
  * @author Adam Warski (adam at warski dot org)
+ * @author Michal Skowronek (mskowr at o2 dot pl)
  */
 public interface PropertyMapper {
     /**
@@ -67,4 +69,8 @@ public interface PropertyMapper {
     List<PersistentCollectionChangeData> mapCollectionChanges(String referencingPropertyName,
                                                               PersistentCollection newColl,
                                                               Serializable oldColl, Serializable id);
+
+	void mapModifiedFlagsToMapFromEntity(SessionImplementor session, Map<String, Object> data, Object newObj, Object oldObj);
+	void mapModifiedFlagsToMapForCollectionChange(String collectionPropertyName, Map<String, Object> data);
+
 }

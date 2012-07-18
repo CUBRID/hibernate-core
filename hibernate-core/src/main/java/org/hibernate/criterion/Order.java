@@ -25,6 +25,7 @@
 package org.hibernate.criterion;
 import java.io.Serializable;
 import java.sql.Types;
+
 import org.hibernate.Criteria;
 import org.hibernate.HibernateException;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
@@ -65,7 +66,7 @@ public class Order implements Serializable {
 	throws HibernateException {
 		String[] columns = criteriaQuery.getColumnsUsingProjection(criteria, propertyName);
 		Type type = criteriaQuery.getTypeUsingProjection(criteria, propertyName);
-		StringBuffer fragment = new StringBuffer();
+		StringBuilder fragment = new StringBuilder();
 		for ( int i=0; i<columns.length; i++ ) {
 			SessionFactoryImplementor factory = criteriaQuery.getFactory();
 			boolean lower = ignoreCase && type.sqlTypes( factory )[i]==Types.VARCHAR;

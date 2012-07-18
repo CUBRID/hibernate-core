@@ -23,21 +23,20 @@
  */
 package org.hibernate.ejb;
 
+import java.util.Map;
 import javax.persistence.PersistenceContextType;
 import javax.persistence.PersistenceException;
 import javax.persistence.spi.PersistenceUnitTransactionType;
-import javax.transaction.Synchronization;
-import java.util.Map;
 
 import org.jboss.logging.Logger;
 
 import org.hibernate.HibernateException;
 import org.hibernate.Interceptor;
 import org.hibernate.Session;
-import org.hibernate.SessionBuilder;
+import org.hibernate.engine.spi.SessionOwner;
 import org.hibernate.annotations.common.util.ReflectHelper;
-import org.hibernate.cfg.Environment;
 import org.hibernate.ejb.internal.EntityManagerMessageLogger;
+import org.hibernate.engine.spi.SessionBuilderImplementor;
 import org.hibernate.engine.spi.SessionImplementor;
 
 /**
@@ -45,7 +44,7 @@ import org.hibernate.engine.spi.SessionImplementor;
  *
  * @author Gavin King
  */
-public class EntityManagerImpl extends AbstractEntityManagerImpl {
+public class EntityManagerImpl extends AbstractEntityManagerImpl implements SessionOwner {
 
     public static final EntityManagerMessageLogger LOG = Logger.getMessageLogger(EntityManagerMessageLogger.class,
                                                                           EntityManagerImpl.class.getName());
@@ -101,7 +100,8 @@ public class EntityManagerImpl extends AbstractEntityManagerImpl {
 	@Override
     protected Session getRawSession() {
 		if ( session == null ) {
-			SessionBuilder sessionBuilder = getEntityManagerFactory().getSessionFactory().withOptions();
+			SessionBuilderImplementor sessionBuilder = getEntityManagerFactory().getSessionFactory().withOptions();
+			sessionBuilder.owner( this );
 			if (sessionInterceptorClass != null) {
 				try {
 					Interceptor interceptor = (Interceptor) sessionInterceptorClass.newInstance();
@@ -127,36 +127,23 @@ public class EntityManagerImpl extends AbstractEntityManagerImpl {
 	}
 
 	public void close() {
+		checkEntityManagerFactory();
 		if ( !open ) {
 			throw new IllegalStateException( "EntityManager is closed" );
 		}
-		if ( !discardOnClose && isTransactionInProgress() ) {
-			//delay the closing till the end of the enlisted transaction
-            getSession().getTransaction().registerSynchronization(new Synchronization() {
-                public void beforeCompletion() {
-                    // nothing to do
-                }
-
-				public void afterCompletion( int i ) {
-                    if (session != null) if (session.isOpen()) {
-                        LOG.debugf("Closing entity manager after transaction completion");
-                        session.close();
-                    } else LOG.entityManagerClosedBySomeoneElse(Environment.AUTO_CLOSE_SESSION);
-                    // TODO session == null should not happen
-                }
-            });
-		}
-		else {
+		if ( discardOnClose || !isTransactionInProgress() ) {
 			//close right now
 			if ( session != null ) {
 				session.close();
 			}
 		}
+		// Otherwise, session auto-close will be enabled by shouldAutoCloseSession().
 		open = false;
 	}
 
 	public boolean isOpen() {
 		//adjustFlushMode(); //don't adjust, can't be done on closed EM
+		checkEntityManagerFactory();
 		try {
 			if ( open ) {
 				getSession().isOpen(); //to force enlistment in tx
@@ -169,4 +156,14 @@ public class EntityManagerImpl extends AbstractEntityManagerImpl {
 		}
 	}
 
+	@Override
+	public boolean shouldAutoCloseSession() {
+		return !isOpen();
+	}
+
+	private void checkEntityManagerFactory() {
+		if (! getEntityManagerFactory().isOpen()) {
+			open = false;
+		}
+	}
 }

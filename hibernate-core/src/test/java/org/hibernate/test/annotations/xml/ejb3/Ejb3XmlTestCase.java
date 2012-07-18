@@ -21,7 +21,6 @@
  * 51 Franklin Street, Fifth Floor
  * Boston, MA  02110-1301  USA
  */
-
 package org.hibernate.test.annotations.xml.ejb3;
 
 import java.io.InputStream;
@@ -31,9 +30,8 @@ import java.lang.reflect.AnnotatedElement;
 import org.dom4j.Document;
 import org.dom4j.io.SAXReader;
 
-import org.hibernate.cfg.annotations.reflection.JPAOverridenAnnotationReader;
+import org.hibernate.cfg.annotations.reflection.JPAOverriddenAnnotationReader;
 import org.hibernate.cfg.annotations.reflection.XMLContext;
-
 import org.hibernate.testing.junit4.BaseUnitTestCase;
 
 import static org.junit.Assert.assertFalse;
@@ -46,7 +44,7 @@ import static org.junit.Assert.assertTrue;
  * database is used.  Thus, no schema generation or cleanup will be performed.
  */
 abstract class Ejb3XmlTestCase extends BaseUnitTestCase {
-	protected JPAOverridenAnnotationReader reader;
+	protected JPAOverriddenAnnotationReader reader;
 
 	protected void assertAnnotationPresent(Class<? extends Annotation> annotationType) {
 		assertTrue(
@@ -62,12 +60,11 @@ abstract class Ejb3XmlTestCase extends BaseUnitTestCase {
 		);
 	}
 
-	protected JPAOverridenAnnotationReader getReader(Class<?> entityClass, String fieldName, String ormResourceName)
+	protected JPAOverriddenAnnotationReader getReader(Class<?> entityClass, String fieldName, String ormResourceName)
 			throws Exception {
 		AnnotatedElement el = getAnnotatedElement( entityClass, fieldName );
 		XMLContext xmlContext = getContext( ormResourceName );
-		JPAOverridenAnnotationReader reader = new JPAOverridenAnnotationReader( el, xmlContext );
-		return reader;
+		return new JPAOverriddenAnnotationReader( el, xmlContext );
 	}
 
 	protected AnnotatedElement getAnnotatedElement(Class<?> entityClass, String fieldName) throws Exception {

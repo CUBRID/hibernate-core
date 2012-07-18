@@ -23,19 +23,20 @@
  */
 package org.hibernate.envers.test.integration.onetoone.bidirectional.ids;
 
-import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.test.AbstractEntityTest;
-import org.hibernate.envers.test.Priority;
-import org.hibernate.envers.test.entities.ids.MulId;
+import java.util.Arrays;
+import javax.persistence.EntityManager;
+
 import org.junit.Test;
 
-import javax.persistence.EntityManager;
-import java.util.Arrays;
+import org.hibernate.ejb.Ejb3Configuration;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
+import org.hibernate.envers.test.Priority;
+import org.hibernate.envers.test.entities.ids.MulId;
 
 /**
  * @author Adam Warski (adam at warski dot org)
  */
-public class MulIdBidirectional extends AbstractEntityTest {
+public class MulIdBidirectional extends BaseEnversJPAFunctionalTestCase {
     private MulId ed1_id;
     private MulId ed2_id;
 

@@ -26,6 +26,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+
 import org.hibernate.dialect.Dialect;
 import org.hibernate.engine.spi.Mapping;
 
@@ -97,7 +98,7 @@ public abstract class Constraint implements RelationalModel, Serializable {
 
 	public String sqlDropString(Dialect dialect, String defaultCatalog, String defaultSchema) {
 		if ( isGenerated( dialect ) ) {
-			return new StringBuffer()
+			return new StringBuilder()
 					.append( "alter table " )
 					.append( getTable().getQualifiedName( dialect, defaultCatalog, defaultSchema ) )
 					.append( " drop constraint " )
@@ -112,7 +113,7 @@ public abstract class Constraint implements RelationalModel, Serializable {
 	public String sqlCreateString(Dialect dialect, Mapping p, String defaultCatalog, String defaultSchema) {
 		if ( isGenerated( dialect ) ) {
 			String constraintString = sqlConstraintString( dialect, getName(), defaultCatalog, defaultSchema );
-			StringBuffer buf = new StringBuffer( "alter table " )
+			StringBuilder buf = new StringBuilder( "alter table " )
 					.append( getTable().getQualifiedName( dialect, defaultCatalog, defaultSchema ) )
 					.append( constraintString );
 			return buf.toString();

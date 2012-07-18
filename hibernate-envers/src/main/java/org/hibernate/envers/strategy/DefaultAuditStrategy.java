@@ -1,13 +1,19 @@
 package org.hibernate.envers.strategy;
+
 import java.io.Serializable;
+
 import org.hibernate.Session;
 import org.hibernate.envers.configuration.AuditConfiguration;
 import org.hibernate.envers.configuration.GlobalConfiguration;
 import org.hibernate.envers.entities.mapper.PersistentCollectionChangeData;
 import org.hibernate.envers.entities.mapper.relation.MiddleComponentData;
 import org.hibernate.envers.entities.mapper.relation.MiddleIdData;
+import org.hibernate.envers.synchronization.SessionCacheCleaner;
 import org.hibernate.envers.tools.query.Parameters;
 import org.hibernate.envers.tools.query.QueryBuilder;
+
+import static org.hibernate.envers.entities.mapper.relation.query.QueryConstants.MIDDLE_ENTITY_ALIAS_DEF_AUD_STR;
+import static org.hibernate.envers.entities.mapper.relation.query.QueryConstants.REVISION_PARAMETER;
 
 /**
  * Default strategy is to simply persist the audit data.
@@ -16,14 +22,22 @@ import org.hibernate.envers.tools.query.QueryBuilder;
  * @author Stephanie Pau
  */
 public class DefaultAuditStrategy implements AuditStrategy {
+    private final SessionCacheCleaner sessionCacheCleaner;
+
+    public DefaultAuditStrategy() {
+        sessionCacheCleaner = new SessionCacheCleaner();
+    }
+
     public void perform(Session session, String entityName, AuditConfiguration auditCfg, Serializable id, Object data,
                         Object revision) {
         session.save(auditCfg.getAuditEntCfg().getAuditEntityName(entityName), data);
+        sessionCacheCleaner.scheduleAuditDataRemoval(session, data);
     }
 
     public void performCollectionChange(Session session, AuditConfiguration auditCfg,
                                         PersistentCollectionChangeData persistentCollectionChangeData, Object revision) {
         session.save(persistentCollectionChangeData.getEntityName(), persistentCollectionChangeData.getData());
+        sessionCacheCleaner.scheduleAuditDataRemoval(session, persistentCollectionChangeData.getData());
     }
 
     
@@ -39,7 +53,7 @@ public class DefaultAuditStrategy implements AuditStrategy {
         // WHERE
         Parameters maxERevQbParameters = maxERevQb.getRootParameters();
         // e2.revision <= :revision
-        maxERevQbParameters.addWhereWithNamedParam(revisionPropertyPath, "<=", "revision");
+        maxERevQbParameters.addWhereWithNamedParam(revisionPropertyPath, "<=", REVISION_PARAMETER);
         // e2.id_ref_ed = e.id_ref_ed
         idData.getOriginalMapper().addIdsEqualToQuery(maxERevQbParameters,
                 alias1 + "." + originalIdPropertyName, alias2 +"." + originalIdPropertyName);
@@ -56,14 +70,14 @@ public class DefaultAuditStrategy implements AuditStrategy {
 		Parameters rootParameters = rootQueryBuilder.getRootParameters();
 
     	// SELECT max(ee2.revision) FROM middleEntity ee2
-        QueryBuilder maxEeRevQb = rootQueryBuilder.newSubQueryBuilder(versionsMiddleEntityName, "ee2");
+        QueryBuilder maxEeRevQb = rootQueryBuilder.newSubQueryBuilder(versionsMiddleEntityName, MIDDLE_ENTITY_ALIAS_DEF_AUD_STR);
         maxEeRevQb.addProjection("max", revisionPropertyPath, false);
         // WHERE
         Parameters maxEeRevQbParameters = maxEeRevQb.getRootParameters();
         // ee2.revision <= :revision
-        maxEeRevQbParameters.addWhereWithNamedParam(revisionPropertyPath, "<=", "revision");
+        maxEeRevQbParameters.addWhereWithNamedParam(revisionPropertyPath, "<=", REVISION_PARAMETER);
         // ee2.originalId.* = ee.originalId.*
-        String ee2OriginalIdPropertyPath = "ee2." + originalIdPropertyName;
+        String ee2OriginalIdPropertyPath = MIDDLE_ENTITY_ALIAS_DEF_AUD_STR + "." + originalIdPropertyName;
         referencingIdData.getPrefixedMapper().addIdsEqualToQuery(maxEeRevQbParameters, eeOriginalIdPropertyPath, ee2OriginalIdPropertyPath);
         for (MiddleComponentData componentData : componentDatas) {
             componentData.getComponentMapper().addMiddleEqualToQuery(maxEeRevQbParameters, eeOriginalIdPropertyPath, ee2OriginalIdPropertyPath);

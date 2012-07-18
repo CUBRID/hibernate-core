@@ -1,22 +1,23 @@
 package org.hibernate.cache.infinispan.timestamp;
+
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
-import org.hibernate.cache.CacheException;
-import org.hibernate.cache.spi.RegionFactory;
-import org.hibernate.cache.spi.TimestampsRegion;
-import org.hibernate.cache.infinispan.impl.BaseGeneralDataRegion;
-import org.hibernate.cache.infinispan.util.CacheAdapter;
-import org.hibernate.cache.infinispan.util.CacheHelper;
-import org.hibernate.cache.infinispan.util.FlagAdapter;
+
 import org.infinispan.notifications.Listener;
 import org.infinispan.notifications.cachelistener.annotation.CacheEntryModified;
 import org.infinispan.notifications.cachelistener.annotation.CacheEntryRemoved;
-import org.infinispan.notifications.cachelistener.event.CacheEntryInvalidatedEvent;
 import org.infinispan.notifications.cachelistener.event.CacheEntryModifiedEvent;
 import org.infinispan.notifications.cachelistener.event.CacheEntryRemovedEvent;
+
+import org.hibernate.cache.CacheException;
+import org.hibernate.cache.infinispan.impl.BaseGeneralDataRegion;
+import org.hibernate.cache.infinispan.util.CacheAdapter;
+import org.hibernate.cache.infinispan.util.FlagAdapter;
+import org.hibernate.cache.spi.RegionFactory;
+import org.hibernate.cache.spi.TimestampsRegion;
 
 /**
  * Defines the behavior of the timestamps cache region for Infinispan.
@@ -45,8 +46,9 @@ public class TimestampsRegionImpl extends BaseGeneralDataRegion implements Times
    public void evictAll() throws CacheException {
       // TODO Is this a valid operation on a timestamps cache?
       Transaction tx = suspend();
-      try {        
-         CacheHelper.sendEvictAllNotification(cacheAdapter, getAddress());
+      try {
+         invalidateRegion(); // Invalidate the local region and then go remote
+         cacheAdapter.broadcastEvictAll();
       } finally {
          resume(tx);
       }
@@ -74,18 +76,13 @@ public class TimestampsRegionImpl extends BaseGeneralDataRegion implements Times
       return value;
    }
 
-   public void put(Object key, Object value) throws CacheException {
-      // Don't hold the JBC node lock throughout the tx, as that
-      // prevents reads and other updates
-      Transaction tx = suspend();
+   public void put(final Object key, final Object value) throws CacheException {
       try {
          // We ensure ASYNC semantics (JBCACHE-1175) and make sure previous
          // value is not loaded from cache store cos it's not needed.
          cacheAdapter.withFlags(FlagAdapter.FORCE_ASYNCHRONOUS).put(key, value);
       } catch (Exception e) {
          throw new CacheException(e);
-      } finally {
-         resume(tx);
       }
    }
 
@@ -102,10 +99,10 @@ public class TimestampsRegionImpl extends BaseGeneralDataRegion implements Times
     * @param event
     */
    @CacheEntryModified
+   @SuppressWarnings("unused")
    public void nodeModified(CacheEntryModifiedEvent event) {
-      if (!handleEvictAllModification(event) && !event.isPre()) {
+      if (!event.isPre())
          localCache.put(event.getKey(), event.getValue());
-      }
    }
 
    /**
@@ -114,27 +111,16 @@ public class TimestampsRegionImpl extends BaseGeneralDataRegion implements Times
     * @param event
     */
    @CacheEntryRemoved
+   @SuppressWarnings("unused")
    public void nodeRemoved(CacheEntryRemovedEvent event) {
       if (event.isPre()) return;
       localCache.remove(event.getKey());
    }
 
    @Override
-   protected boolean handleEvictAllModification(CacheEntryModifiedEvent event) {
-      boolean result = super.handleEvictAllModification(event);
-      if (result) {
-         localCache.clear();
-      }
-      return result;
-   }
-
-   @Override
-   protected boolean handleEvictAllInvalidation(CacheEntryInvalidatedEvent event) {
-      boolean result = super.handleEvictAllInvalidation(event);
-      if (result) {
-         localCache.clear();
-      }
-      return result;
+   public void invalidateRegion() {
+      super.invalidateRegion(); // Invalidate first
+      localCache.clear();
    }
 
    /**

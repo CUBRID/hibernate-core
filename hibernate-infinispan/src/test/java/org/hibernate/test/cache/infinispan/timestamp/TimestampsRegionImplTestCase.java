@@ -38,18 +38,17 @@ import org.infinispan.notifications.cachelistener.annotation.CacheEntryRemoved;
 import org.infinispan.notifications.cachelistener.annotation.CacheEntryVisited;
 import org.infinispan.notifications.cachelistener.event.Event;
 
-import org.hibernate.cache.spi.CacheDataDescription;
-import org.hibernate.cache.spi.Region;
-import org.hibernate.cache.spi.UpdateTimestampsCache;
 import org.hibernate.cache.infinispan.InfinispanRegionFactory;
 import org.hibernate.cache.infinispan.impl.ClassLoaderAwareCache;
 import org.hibernate.cache.infinispan.timestamp.TimestampsRegionImpl;
 import org.hibernate.cache.infinispan.util.CacheAdapter;
 import org.hibernate.cache.infinispan.util.CacheAdapterImpl;
 import org.hibernate.cache.infinispan.util.FlagAdapter;
+import org.hibernate.cache.spi.CacheDataDescription;
+import org.hibernate.cache.spi.Region;
+import org.hibernate.cache.spi.UpdateTimestampsCache;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.service.ServiceRegistryBuilder;
-
 import org.hibernate.test.cache.infinispan.AbstractGeneralDataRegionTestCase;
 import org.hibernate.test.cache.infinispan.functional.classloader.Account;
 import org.hibernate.test.cache.infinispan.functional.classloader.AccountHolder;
@@ -76,13 +75,13 @@ public class TimestampsRegionImplTestCase extends AbstractGeneralDataRegionTestC
 
    @Override
    protected CacheAdapter getInfinispanCache(InfinispanRegionFactory regionFactory) {
-      return CacheAdapterImpl.newInstance(regionFactory.getCacheManager().getCache("timestamps"));
+      return CacheAdapterImpl.newInstance(regionFactory.getCacheManager().getCache("timestamps").getAdvancedCache());
    }
 
    public void testClearTimestampsRegionInIsolated() throws Exception {
       Configuration cfg = createConfiguration();
       InfinispanRegionFactory regionFactory = CacheTestUtil.startRegionFactory(
-				new ServiceRegistryBuilder( cfg.getProperties() ).buildServiceRegistry(),
+			  new ServiceRegistryBuilder().applySettings( cfg.getProperties() ).buildServiceRegistry(),
 			  cfg,
 			  getCacheTestSupport()
 	  );
@@ -91,7 +90,7 @@ public class TimestampsRegionImplTestCase extends AbstractGeneralDataRegionTestC
 
       Configuration cfg2 = createConfiguration();
       InfinispanRegionFactory regionFactory2 = CacheTestUtil.startRegionFactory(
-				new ServiceRegistryBuilder( cfg.getProperties() ).buildServiceRegistry(),
+			  new ServiceRegistryBuilder().applySettings( cfg.getProperties() ).buildServiceRegistry(),
 			  cfg2,
 			  getCacheTestSupport()
 	  );
@@ -141,7 +140,7 @@ public class TimestampsRegionImplTestCase extends AbstractGeneralDataRegionTestC
 //      }
 
       @Override
-      protected ClassLoaderAwareCache createCacheWrapper(AdvancedCache cache) {
+      protected AdvancedCache createCacheWrapper(AdvancedCache cache) {
          return new ClassLoaderAwareCache(cache, Thread.currentThread().getContextClassLoader()) {
             @Override
             public void addListener(Object listener) {

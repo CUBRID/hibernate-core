@@ -23,17 +23,17 @@
  */
 package org.hibernate.metamodel.source.hbm;
 
+import org.hibernate.internal.jaxb.mapping.hbm.JaxbBagElement;
 import org.hibernate.internal.util.StringHelper;
 import org.hibernate.metamodel.source.binder.AttributeSourceContainer;
 import org.hibernate.metamodel.source.binder.Orderable;
 import org.hibernate.metamodel.source.binder.PluralAttributeNature;
-import org.hibernate.metamodel.source.hbm.jaxb.mapping.XMLBagElement;
 
 /**
  * @author Steve Ebersole
  */
 public class BagAttributeSourceImpl extends AbstractPluralAttributeSourceImpl implements Orderable {
-	public BagAttributeSourceImpl(XMLBagElement bagElement, AttributeSourceContainer container) {
+	public BagAttributeSourceImpl(JaxbBagElement bagElement, AttributeSourceContainer container) {
 		super( bagElement, container );
 	}
 
@@ -43,8 +43,8 @@ public class BagAttributeSourceImpl extends AbstractPluralAttributeSourceImpl im
 	}
 
 	@Override
-	public XMLBagElement getPluralAttributeElement() {
-		return (XMLBagElement) super.getPluralAttributeElement();
+	public JaxbBagElement getPluralAttributeElement() {
+		return (JaxbBagElement) super.getPluralAttributeElement();
 	}
 
 	@Override

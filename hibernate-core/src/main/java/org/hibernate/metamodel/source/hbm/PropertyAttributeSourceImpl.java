@@ -26,6 +26,7 @@ package org.hibernate.metamodel.source.hbm;
 import java.util.List;
 import java.util.Map;
 
+import org.hibernate.internal.jaxb.mapping.hbm.JaxbPropertyElement;
 import org.hibernate.mapping.PropertyGeneration;
 import org.hibernate.metamodel.source.LocalBindingContext;
 import org.hibernate.metamodel.source.binder.ExplicitHibernateTypeSource;
@@ -33,7 +34,6 @@ import org.hibernate.metamodel.source.binder.MetaAttributeSource;
 import org.hibernate.metamodel.source.binder.RelationalValueSource;
 import org.hibernate.metamodel.source.binder.SingularAttributeNature;
 import org.hibernate.metamodel.source.binder.SingularAttributeSource;
-import org.hibernate.metamodel.source.hbm.jaxb.mapping.XMLPropertyElement;
 
 /**
  * Implementation for {@code <property/>} mappings
@@ -41,11 +41,11 @@ import org.hibernate.metamodel.source.hbm.jaxb.mapping.XMLPropertyElement;
  * @author Steve Ebersole
  */
 class PropertyAttributeSourceImpl implements SingularAttributeSource {
-	private final XMLPropertyElement propertyElement;
+	private final JaxbPropertyElement propertyElement;
 	private final ExplicitHibernateTypeSource typeSource;
 	private final List<RelationalValueSource> valueSources;
 
-	PropertyAttributeSourceImpl(final XMLPropertyElement propertyElement, LocalBindingContext bindingContext) {
+	PropertyAttributeSourceImpl(final JaxbPropertyElement propertyElement, LocalBindingContext bindingContext) {
 		this.propertyElement = propertyElement;
 		this.typeSource = new ExplicitHibernateTypeSource() {
 			private final String name = propertyElement.getTypeAttribute() != null

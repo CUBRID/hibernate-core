@@ -23,30 +23,37 @@
  */
 package org.hibernate.envers.test.integration.query;
 
-import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.query.AuditEntity;
-import org.hibernate.envers.test.AbstractEntityTest;
-import org.hibernate.envers.test.Priority;
-import org.hibernate.envers.test.entities.StrIntTestEntity;
+import java.util.List;
+import java.util.Map;
+import javax.persistence.EntityManager;
+
 import org.junit.Test;
 
-import javax.persistence.EntityManager;
-import java.util.List;
+import org.hibernate.ejb.Ejb3Configuration;
+import org.hibernate.envers.query.AuditEntity;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
+import org.hibernate.envers.test.Priority;
+import org.hibernate.envers.test.entities.StrIntTestEntity;
 
 /**
  * A test which checks if the data of a deleted entity is stored when the setting is on.
  * @author Adam Warski (adam at warski dot org)
  */
 @SuppressWarnings({"unchecked"})
-public class StoreDeletedData extends AbstractEntityTest {
+public class StoreDeletedData extends BaseEnversJPAFunctionalTestCase {
     private Integer id1;
 
     public void configure(Ejb3Configuration cfg) {
         cfg.addAnnotatedClass(StrIntTestEntity.class);
-		cfg.setProperty("org.hibernate.envers.storeDataAtDelete", "true");
     }
 
-    @Test
+	@Override
+	protected void addConfigOptions(Map options) {
+		super.addConfigOptions( options );
+		options.put( "org.hibernate.envers.storeDataAtDelete", "true" );
+	}
+
+	@Test
     @Priority(10)
     public void initData() {
         // Revision 1

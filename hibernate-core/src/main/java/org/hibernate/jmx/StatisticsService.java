@@ -12,6 +12,7 @@ import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.internal.SessionFactoryRegistry;
 import org.hibernate.stat.CollectionStatistics;
 import org.hibernate.stat.EntityStatistics;
+import org.hibernate.stat.NaturalIdCacheStatistics;
 import org.hibernate.stat.QueryStatistics;
 import org.hibernate.stat.SecondLevelCacheStatistics;
 import org.hibernate.stat.Statistics;
@@ -53,7 +54,7 @@ import org.hibernate.stat.internal.ConcurrentStatisticsImpl;
 @Deprecated
 public class StatisticsService implements StatisticsServiceMBean {
 
-    private static final CoreMessageLogger LOG = Logger.getMessageLogger(CoreMessageLogger.class, StatisticsService.class.getName());
+	private static final CoreMessageLogger LOG = Logger.getMessageLogger( CoreMessageLogger.class, StatisticsService.class.getName() );
 	//TODO: We probably should have a StatisticsNotPublishedException, to make it clean
 
 	SessionFactory sf;
@@ -78,15 +79,15 @@ public class StatisticsService implements StatisticsServiceMBean {
 			setSessionFactory( sessionFactory );
 		}
 		catch (NameNotFoundException e) {
-            LOG.noSessionFactoryWithJndiName(sfJNDIName, e);
+			LOG.noSessionFactoryWithJndiName( sfJNDIName, e );
 			setSessionFactory(null);
 		}
 		catch (NamingException e) {
-            LOG.unableToAccessSessionFactory(sfJNDIName, e);
+			LOG.unableToAccessSessionFactory( sfJNDIName, e );
 			setSessionFactory(null);
 		}
 		catch (ClassCastException e) {
-            LOG.jndiNameDoesNotHandleSessionFactoryReference(sfJNDIName, e);
+			LOG.jndiNameDoesNotHandleSessionFactoryReference( sfJNDIName, e );
 			setSessionFactory(null);
 		}
 	}
@@ -184,6 +185,19 @@ public class StatisticsService implements StatisticsServiceMBean {
 	public long getQueryCachePutCount() {
 		return stats.getQueryCachePutCount();
 	}
+
+	public long getUpdateTimestampsCacheHitCount() {
+		return stats.getUpdateTimestampsCacheHitCount();
+	}
+
+	public long getUpdateTimestampsCacheMissCount() {
+		return stats.getUpdateTimestampsCacheMissCount();
+	}
+
+	public long getUpdateTimestampsCachePutCount() {
+		return stats.getUpdateTimestampsCachePutCount();
+	}
+
 	/**
 	 * @see StatisticsServiceMBean#getFlushCount()
 	 */
@@ -214,6 +228,38 @@ public class StatisticsService implements StatisticsServiceMBean {
 	public long getSecondLevelCachePutCount() {
 		return stats.getSecondLevelCachePutCount();
 	}
+		
+	public NaturalIdCacheStatistics getNaturalIdCacheStatistics(String regionName) {
+		return stats.getNaturalIdCacheStatistics( regionName );
+	}
+
+	public long getNaturalIdCacheHitCount() {
+		return stats.getNaturalIdCacheHitCount();
+	}
+
+	public long getNaturalIdCacheMissCount() {
+		return stats.getNaturalIdCacheMissCount();
+	}
+
+	public long getNaturalIdCachePutCount() {
+		return stats.getNaturalIdCachePutCount();
+	}
+	
+	@Override
+	public long getNaturalIdQueryExecutionCount() {
+		return stats.getNaturalIdQueryExecutionCount();
+	}
+
+	@Override
+	public long getNaturalIdQueryExecutionMaxTime() {
+		return stats.getNaturalIdQueryExecutionMaxTime();
+	}
+
+	@Override
+	public String getNaturalIdQueryExecutionMaxTimeRegion() {
+		return stats.getNaturalIdQueryExecutionMaxTimeRegion();
+	}
+
 	/**
 	 * @see StatisticsServiceMBean#getSessionCloseCount()
 	 */

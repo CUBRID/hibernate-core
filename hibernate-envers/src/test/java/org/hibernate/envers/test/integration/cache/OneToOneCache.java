@@ -23,20 +23,21 @@
  */
 package org.hibernate.envers.test.integration.cache;
 
+import javax.persistence.EntityManager;
+
+import org.junit.Test;
+
 import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.test.AbstractEntityTest;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
 import org.hibernate.envers.test.Priority;
 import org.hibernate.envers.test.integration.onetoone.bidirectional.BiRefEdEntity;
 import org.hibernate.envers.test.integration.onetoone.bidirectional.BiRefIngEntity;
-import org.junit.Test;
-
-import javax.persistence.EntityManager;
 
 /**
  * @author Adam Warski (adam at warski dot org)
  */
 @SuppressWarnings({"ObjectEquality"})
-public class OneToOneCache extends AbstractEntityTest {
+public class OneToOneCache extends BaseEnversJPAFunctionalTestCase {
     private Integer ed1_id;
     private Integer ed2_id;
 
@@ -77,8 +78,6 @@ public class OneToOneCache extends AbstractEntityTest {
         ing1.setReference(ed2);
 
         em.getTransaction().commit();
-
-        //
 
         ed1_id = ed1.getId();
         ed2_id = ed2.getId();

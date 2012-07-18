@@ -25,10 +25,9 @@ package org.hibernate.test.annotations.mappedsuperclass.intermediate;
 
 import java.math.BigDecimal;
 
-import org.hibernate.Session;
-
 import org.junit.Test;
 
+import org.hibernate.Session;
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
@@ -55,7 +54,12 @@ public class IntermediateMappedSuperclassTest extends BaseCoreFunctionalTestCase
 		session = openSession();
 		session.beginTransaction();
 		Account account = (Account) session.get( Account.class, savingsAccount.getId() );
-		assertEquals( withdrawalLimit, ( (SavingsAccount) account ).getWithdrawalLimit() );
+		// Oracle returns the BigDecimal with scale=0, which is equal to 1000 (not 1000.00);
+		// compare using BigDecimal.doubleValue;
+		assertEquals(
+				withdrawalLimit.doubleValue(),
+				( (SavingsAccount) account ).getWithdrawalLimit().doubleValue(),
+				0.001);
 		session.delete( account );
 		session.getTransaction().commit();
 		session.close();

@@ -28,9 +28,10 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 
+import org.jboss.logging.Logger;
+
 import org.hibernate.ejb.internal.EntityManagerMessageLogger;
 import org.hibernate.internal.util.StringHelper;
-import org.jboss.logging.Logger;
 
 /**
  * @author Emmanuel Bernard
@@ -162,7 +163,7 @@ public class JarVisitorFactory {
 		if ( "jar".equals( protocol ) ) {
 			return new JarProtocolVisitor( jarUrl, filters, entry );
 		}
-		else if ( StringHelper.isEmpty( protocol ) || "file".equals( protocol ) ) {
+		else if ( StringHelper.isEmpty( protocol ) || "file".equals( protocol ) || "vfszip".equals( protocol ) || "vfsfile".equals( protocol ) ) {
 			File file;
 			try {
 				final String filePart = jarUrl.getFile();

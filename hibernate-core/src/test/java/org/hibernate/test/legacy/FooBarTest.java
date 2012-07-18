@@ -43,6 +43,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 import org.jboss.logging.Logger;
+import org.junit.Test;
 
 import org.hibernate.Criteria;
 import org.hibernate.FetchMode;
@@ -63,12 +64,14 @@ import org.hibernate.criterion.Order;
 import org.hibernate.criterion.Restrictions;
 import org.hibernate.dialect.DB2Dialect;
 import org.hibernate.dialect.DerbyDialect;
+import org.hibernate.dialect.H2Dialect;
 import org.hibernate.dialect.HSQLDialect;
 import org.hibernate.dialect.InterbaseDialect;
 import org.hibernate.dialect.MckoiDialect;
 import org.hibernate.dialect.MySQLDialect;
 import org.hibernate.dialect.Oracle8iDialect;
 import org.hibernate.dialect.PointbaseDialect;
+import org.hibernate.dialect.PostgreSQL81Dialect;
 import org.hibernate.dialect.PostgreSQLDialect;
 import org.hibernate.dialect.SAPDBDialect;
 import org.hibernate.dialect.Sybase11Dialect;
@@ -82,13 +85,11 @@ import org.hibernate.jdbc.AbstractReturningWork;
 import org.hibernate.jdbc.AbstractWork;
 import org.hibernate.proxy.HibernateProxy;
 import org.hibernate.service.jdbc.connections.spi.ConnectionProvider;
-import org.hibernate.type.StandardBasicTypes;
-
-import org.junit.Test;
-
 import org.hibernate.testing.DialectChecks;
+import org.hibernate.testing.RequiresDialect;
 import org.hibernate.testing.RequiresDialectFeature;
 import org.hibernate.testing.env.ConnectionProviderBuilder;
+import org.hibernate.type.StandardBasicTypes;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -1394,7 +1395,7 @@ public class FooBarTest extends LegacyTestCase {
 		baz.setFoo(bar);
 		s.save(baz);
 		Query q = s.createQuery("from Foo foo, Bar bar");
-		if ( !(getDialect() instanceof DB2Dialect) ) {
+		if ( supportsLockingNullableSideOfJoin( getDialect() ) ) {
 			q.setLockMode("bar", LockMode.UPGRADE);
 		}
 		Object[] result = (Object[]) q.uniqueResult();
@@ -1423,12 +1424,12 @@ public class FooBarTest extends LegacyTestCase {
 		s = openSession();
 		tx = s.beginTransaction();
 		q = s.createQuery("from Foo foo, Bar bar, Bar bar2");
-		if ( !(getDialect() instanceof DB2Dialect) ) {
+		if ( supportsLockingNullableSideOfJoin( getDialect() ) ) {
 			q.setLockMode("bar", LockMode.UPGRADE);
 		}
 		q.setLockMode("bar2", LockMode.READ);
 		result = (Object[]) q.list().get(0);
-		if ( !(getDialect() instanceof DB2Dialect) ) {
+		if ( supportsLockingNullableSideOfJoin( getDialect() ) ) {
 			assertTrue( s.getCurrentLockMode( result[0] )==LockMode.UPGRADE && s.getCurrentLockMode( result[1] )==LockMode.UPGRADE );
 		}
 		s.delete( result[0] );
@@ -1649,10 +1650,10 @@ public class FooBarTest extends LegacyTestCase {
 			.iterate();
 		int count=0;
 		while ( iter.hasNext() ) {
-			iter.next();
+		    iter.next();
 			count++;
 		}
-		assertTrue(count==4);
+		assertEquals(4, count);
 		iter = s.createQuery("select distinct foo from Foo foo")
 			.setMaxResults(2)
 			.setFirstResult(2)
@@ -2003,10 +2004,6 @@ public class FooBarTest extends LegacyTestCase {
 			.addOrder( Order.asc("date") )
 			.list();
 		assertTrue( list.size()==1 && list.get(0)==f );
-		if(!(getDialect() instanceof TimesTenDialect || getDialect() instanceof HSQLDialect)) {
-			list = s.createCriteria(Foo.class).setMaxResults(0).list();
-			assertTrue( list.size()==0 );
-		}
 		list = s.createCriteria(Foo.class)
 			.setFirstResult(1)
 			.addOrder( Order.asc("date") )
@@ -2297,7 +2294,7 @@ public class FooBarTest extends LegacyTestCase {
 			s.createQuery( "select count(*) from Baz as baz where 1 in indices(baz.fooArray)" ).list();
 			s.createQuery( "select count(*) from Bar as bar where 'abc' in elements(bar.baz.fooArray)" ).list();
 			s.createQuery( "select count(*) from Bar as bar where 1 in indices(bar.baz.fooArray)" ).list();
-			if ( !(getDialect() instanceof DB2Dialect) &&  !(getDialect() instanceof Oracle8iDialect ) && !( getDialect() instanceof SybaseDialect ) && !( getDialect() instanceof Sybase11Dialect ) && !( getDialect() instanceof SybaseASE15Dialect ) && !( getDialect() instanceof PostgreSQLDialect )) {
+			if ( !(getDialect() instanceof DB2Dialect) &&  !(getDialect() instanceof Oracle8iDialect ) && !( getDialect() instanceof SybaseDialect ) && !( getDialect() instanceof Sybase11Dialect ) && !( getDialect() instanceof SybaseASE15Dialect ) && !( getDialect() instanceof PostgreSQLDialect ) && !(getDialect() instanceof PostgreSQL81Dialect)) {
 				// SybaseAnywhereDialect supports implicit conversions from strings to ints
 				s.createQuery(
 						"select count(*) from Bar as bar, bar.component.glarch.proxyArray as g where g.id in indices(bar.baz.fooArray)"
@@ -2372,7 +2369,7 @@ public class FooBarTest extends LegacyTestCase {
 
 		s.delete(bar);
 
-		if ( getDialect() instanceof DB2Dialect || getDialect() instanceof PostgreSQLDialect ) {
+		if ( getDialect() instanceof DB2Dialect || getDialect() instanceof PostgreSQLDialect || getDialect() instanceof PostgreSQL81Dialect ) {
 			s.createQuery( "select one from One one join one.manies many group by one order by count(many)" ).iterate();
 			s.createQuery( "select one from One one join one.manies many group by one having count(many) < 5" )
 					.iterate();
@@ -4382,6 +4379,7 @@ public class FooBarTest extends LegacyTestCase {
 	}
 
 	@Test
+    @RequiresDialect(value = H2Dialect.class, comment = "this is more like a unit test")
 	public void testUserProvidedConnection() throws Exception {
 		ConnectionProvider dcp = ConnectionProviderBuilder.buildConnectionProvider();
 		Session s = sessionFactory().withOptions().connection( dcp.getConnection() ).openSession();

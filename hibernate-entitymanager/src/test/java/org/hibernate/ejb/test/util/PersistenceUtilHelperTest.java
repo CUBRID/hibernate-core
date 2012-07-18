@@ -22,15 +22,20 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate.ejb.test.util;
+
 import javax.persistence.spi.LoadState;
+
+import org.junit.Test;
+
 import org.hibernate.ejb.util.PersistenceUtilHelper;
 
+import static org.junit.Assert.assertEquals;
 /**
  * Tests for HHH-5094 and HHH-5334
  *
  * @author Hardy Ferentschik
  */
-public class PersistenceUtilHelperTest extends junit.framework.TestCase {
+public class PersistenceUtilHelperTest{
 	private final PersistenceUtilHelper.MetadataCache cache = new PersistenceUtilHelper.MetadataCache();
 
 	public static class FieldAccessBean extends FieldAccessBeanBase {
@@ -62,14 +67,14 @@ public class PersistenceUtilHelperTest extends junit.framework.TestCase {
 			return publicAccessProperty;
 		}
 	}
-
+    @Test
 	public void testIsLoadedWithReferencePublicField() {
 		assertEquals(
 				LoadState.UNKNOWN,
 				PersistenceUtilHelper.isLoadedWithReference( new FieldAccessBean(), "publicAccessProperty", cache )
 		);
 	}
-
+    @Test
 	public void testIsLoadedWithReferencePublicMethod() {
 		assertEquals(
 				LoadState.UNKNOWN,
@@ -78,14 +83,14 @@ public class PersistenceUtilHelperTest extends junit.framework.TestCase {
 				)
 		);
 	}
-
+   @Test
 	public void testIsLoadedWithReferenceProtectedField() {
 		assertEquals(
 				LoadState.UNKNOWN,
 				PersistenceUtilHelper.isLoadedWithReference( new FieldAccessBean(), "protectedAccessProperty", cache )
 		);
 	}
-
+    @Test
 	public void testIsLoadedWithReferenceProtectedMethod() {
 		assertEquals(
 				LoadState.UNKNOWN,
@@ -94,14 +99,14 @@ public class PersistenceUtilHelperTest extends junit.framework.TestCase {
 				)
 		);
 	}
-
+    @Test
 	public void testIsLoadedWithReferencePrivateField() {
 		assertEquals(
 				LoadState.UNKNOWN,
 				PersistenceUtilHelper.isLoadedWithReference( new FieldAccessBean(), "privateAccessProperty", cache )
 		);
 	}
-
+    @Test
 	public void testIsLoadedWithReferencePrivateMethod() {
 		assertEquals(
 				LoadState.UNKNOWN,

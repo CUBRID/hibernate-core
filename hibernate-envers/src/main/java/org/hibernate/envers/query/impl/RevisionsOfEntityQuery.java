@@ -25,6 +25,7 @@ package org.hibernate.envers.query.impl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
 import org.hibernate.envers.RevisionType;
 import org.hibernate.envers.configuration.AuditConfiguration;
 import org.hibernate.envers.configuration.AuditEntitiesConfiguration;
@@ -35,7 +36,7 @@ import org.hibernate.proxy.HibernateProxy;
 
 /**
  * @author Adam Warski (adam at warski dot org)
- * @author Hern�n Chanfreau
+ * @author HernпїЅn Chanfreau
  */
 public class RevisionsOfEntityQuery extends AbstractAuditQuery {
     private final boolean selectEntitiesOnly;

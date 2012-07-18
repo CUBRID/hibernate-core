@@ -1,9 +1,9 @@
 //$Id: HibernateService.java 6100 2005-03-17 10:48:03Z turin42 $
 package org.hibernate.jmx;
 
-import javax.naming.InitialContext;
 import java.util.Map;
 import java.util.Properties;
+import javax.naming.InitialContext;
 
 import org.jboss.logging.Logger;
 
@@ -66,7 +66,7 @@ public class HibernateService extends ExternalSessionFactoryConfig implements Hi
         LOG.startingServiceAtJndiName( boundName );
         LOG.serviceProperties( properties );
         return buildConfiguration().buildSessionFactory(
-				new ServiceRegistryBuilder( properties ).buildServiceRegistry()
+				new ServiceRegistryBuilder().applySettings( properties ).buildServiceRegistry()
 		);
 	}
 

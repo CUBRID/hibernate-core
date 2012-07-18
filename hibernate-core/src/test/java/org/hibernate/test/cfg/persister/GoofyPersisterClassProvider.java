@@ -31,27 +31,31 @@ import org.hibernate.HibernateException;
 import org.hibernate.LockMode;
 import org.hibernate.LockOptions;
 import org.hibernate.MappingException;
+import org.hibernate.bytecode.spi.EntityInstrumentationMetadata;
 import org.hibernate.cache.spi.access.CollectionRegionAccessStrategy;
 import org.hibernate.cache.spi.access.EntityRegionAccessStrategy;
+import org.hibernate.cache.spi.access.NaturalIdRegionAccessStrategy;
 import org.hibernate.cache.spi.entry.CacheEntryStructure;
 import org.hibernate.collection.spi.PersistentCollection;
 import org.hibernate.engine.spi.CascadeStyle;
-import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.engine.spi.Mapping;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.engine.spi.ValueInclusion;
 import org.hibernate.id.IdentifierGenerator;
+import org.hibernate.internal.FilterAliasGenerator;
 import org.hibernate.mapping.Collection;
 import org.hibernate.mapping.PersistentClass;
 import org.hibernate.metadata.ClassMetadata;
 import org.hibernate.metadata.CollectionMetadata;
 import org.hibernate.metamodel.binding.EntityBinding;
 import org.hibernate.metamodel.binding.PluralAttributeBinding;
-import org.hibernate.persister.spi.PersisterClassResolver;
 import org.hibernate.persister.collection.CollectionPersister;
 import org.hibernate.persister.entity.EntityPersister;
+import org.hibernate.persister.spi.PersisterClassResolver;
 import org.hibernate.tuple.entity.EntityMetamodel;
 import org.hibernate.tuple.entity.EntityTuplizer;
+import org.hibernate.tuple.entity.NonPojoInstrumentationMetadata;
 import org.hibernate.type.CollectionType;
 import org.hibernate.type.Type;
 import org.hibernate.type.VersionType;
@@ -84,6 +88,7 @@ public class GoofyPersisterClassProvider implements PersisterClassResolver {
 
 		public NoopEntityPersister(org.hibernate.mapping.PersistentClass persistentClass,
 								   org.hibernate.cache.spi.access.EntityRegionAccessStrategy strategy,
+								   NaturalIdRegionAccessStrategy naturalIdRegionAccessStrategy,
 								   SessionFactoryImplementor sf,
 								   Mapping mapping) {
 			throw new GoofyException(NoopEntityPersister.class);
@@ -97,6 +102,11 @@ public class GoofyPersisterClassProvider implements PersisterClassResolver {
 		@Override
 		public EntityTuplizer getEntityTuplizer() {
 			return null;
+		}
+
+		@Override
+		public EntityInstrumentationMetadata getInstrumentationMetadata() {
+			return new NonPojoInstrumentationMetadata( null );
 		}
 
 		@Override
@@ -240,6 +250,12 @@ public class GoofyPersisterClassProvider implements PersisterClassResolver {
 		}
 
 		@Override
+		public Serializable loadEntityIdByNaturalId(Object[] naturalIdValues, LockOptions lockOptions,
+				SessionImplementor session) {
+			return null;
+		}
+
+		@Override
 		public IdentifierGenerator getIdentifierGenerator() {
 			return null;
 		}
@@ -366,6 +382,16 @@ public class GoofyPersisterClassProvider implements PersisterClassResolver {
 
 		@Override
 		public EntityRegionAccessStrategy getCacheAccessStrategy() {
+			return null;
+		}
+		
+		@Override
+		public boolean hasNaturalIdCache() {
+			return false;
+		}
+
+		@Override
+		public NaturalIdRegionAccessStrategy getNaturalIdCacheAccessStrategy() {
 			return null;
 		}
 
@@ -533,6 +559,12 @@ public class GoofyPersisterClassProvider implements PersisterClassResolver {
 
 		@Override
 		public EntityPersister getSubclassEntityPersister(Object instance, SessionFactoryImplementor factory) {
+			return null;
+		}
+
+		@Override
+		public FilterAliasGenerator getFilterAliasGenerator(String rootAlias) {
+			// TODO Auto-generated method stub
 			return null;
 		}
 	}

@@ -19,6 +19,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import org.junit.Test;
+
 import org.hibernate.Criteria;
 import org.hibernate.FetchMode;
 import org.hibernate.FlushMode;
@@ -34,15 +36,15 @@ import org.hibernate.dialect.HSQLDialect;
 import org.hibernate.dialect.MckoiDialect;
 import org.hibernate.dialect.MySQLDialect;
 import org.hibernate.dialect.PointbaseDialect;
+import org.hibernate.dialect.SybaseASE15Dialect;
 import org.hibernate.dialect.TimesTenDialect;
+import org.hibernate.testing.SkipForDialect;
 import org.hibernate.transform.Transformers;
 import org.hibernate.type.DateType;
 import org.hibernate.type.EntityType;
 import org.hibernate.type.StandardBasicTypes;
 import org.hibernate.type.StringType;
 import org.hibernate.type.Type;
-
-import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -51,6 +53,11 @@ import static org.junit.Assert.assertTrue;
 
 public class FumTest extends LegacyTestCase {
 	private static short fumKeyShort = 1;
+
+	@Override
+	protected boolean isCleanupTestDataRequired() {
+		return true;
+	}
 
 	@Override
 	public String[] getMappings() {
@@ -713,6 +720,7 @@ public class FumTest extends LegacyTestCase {
 	}
 
 	@Test
+    @SkipForDialect( value = SybaseASE15Dialect.class, jiraKey = "HHH-3690" )
 	public void testCompositeKeyPathExpressions() throws Exception {
 		Session s = openSession();
 		s.beginTransaction();

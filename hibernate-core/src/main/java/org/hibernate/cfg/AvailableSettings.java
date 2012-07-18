@@ -28,9 +28,20 @@ package org.hibernate.cfg;
  */
 public interface AvailableSettings {
 	/**
-	 * Names a {@literal JNDI} namespace into which the {@link org.hibernate.SessionFactory} should be bound.
+	 * Defines a name for the {@link org.hibernate.SessionFactory}.  Useful both to<ul>
+	 *     <li>allow serialization and deserialization to work across different jvms</li>
+	 *     <li>optionally allow the SessionFactory to be bound into JNDI</li>
+	 * </ul>
+	 *
+	 * @see #SESSION_FACTORY_NAME_IS_JNDI
 	 */
 	public static final String SESSION_FACTORY_NAME = "hibernate.session_factory_name";
+
+	/**
+	 * Does the value defined by {@link #SESSION_FACTORY_NAME} represent a {@literal JNDI} namespace into which
+	 * the {@link org.hibernate.SessionFactory} should be bound?
+	 */
+	public static final String SESSION_FACTORY_NAME_IS_JNDI = "hibernate.session_factory_name_is_jndi";
 
 	/**
 	 * Names the {@link org.hibernate.service.jdbc.connections.spi.ConnectionProvider} to use for obtaining
@@ -376,6 +387,14 @@ public interface AvailableSettings {
 	public static final String HBM2DDL_IMPORT_FILES = "hibernate.hbm2ddl.import_files";
 
 	/**
+	 * {@link String} reference to {@link org.hibernate.tool.hbm2ddl.ImportSqlCommandExtractor} implementation class.
+	 * Referenced implementation is required to provide non-argument constructor.
+	 *
+	 * The default value is <tt>org.hibernate.tool.hbm2ddl.SingleLineSqlCommandExtractor</tt>.
+	 */
+	public static final String HBM2DDL_IMPORT_FILES_SQL_EXTRACTOR = "hibernate.hbm2ddl.import_files_sql_extractor";
+
+	/**
 	 * The {@link org.hibernate.exception.spi.SQLExceptionConverter} to use for converting SQLExceptions
 	 * to Hibernate's JDBCException hierarchy.  The default is to use the configured
 	 * {@link org.hibernate.dialect.Dialect}'s preferred SQLExceptionConverter.
@@ -433,27 +452,41 @@ public interface AvailableSettings {
 	public static final String PREFER_POOLED_VALUES_LO = "hibernate.id.optimizer.pooled.prefer_lo";
 
 	/**
-	 * The maximum number of strong references maintained by {@link org.hibernate.internal.util.collections.SoftLimitMRUCache}. Default is 128.
+	 * The maximum number of strong references maintained by {@link org.hibernate.engine.query.spi.QueryPlanCache}. Default is 128.
+	 * @deprecated in favor of {@link #QUERY_PLAN_CACHE_PARAMETER_METADATA_MAX_SIZE}
 	 */
+	@Deprecated
 	public static final String QUERY_PLAN_CACHE_MAX_STRONG_REFERENCES = "hibernate.query.plan_cache_max_strong_references";
 
 	/**
-	 * The maximum number of soft references maintained by {@link org.hibernate.internal.util.collections.SoftLimitMRUCache}. Default is 2048.
+	 * The maximum number of soft references maintained by {@link org.hibernate.engine.query.spi.QueryPlanCache}. Default is 2048.
+	 * @deprecated in favor of {@link #QUERY_PLAN_CACHE_MAX_SIZE}
 	 */
+	@Deprecated
 	public static final String QUERY_PLAN_CACHE_MAX_SOFT_REFERENCES = "hibernate.query.plan_cache_max_soft_references";
+
+	/**
+	 * The maximum number of entries including:
+	 * <ul>
+	 *     <li>{@link org.hibernate.engine.query.spi.HQLQueryPlan}</li>
+	 *     <li>{@link org.hibernate.engine.query.spi.FilterQueryPlan}</li>
+	 *     <li>{@link org.hibernate.engine.query.spi.NativeSQLQueryPlan}</li>
+	 * </ul>
+	 * 
+	 * maintained by {@link org.hibernate.engine.query.spi.QueryPlanCache}. Default is 2048.
+	 */
+	public static final String QUERY_PLAN_CACHE_MAX_SIZE = "hibernate.query.plan_cache_max_size";
+
+	/**
+	 * The maximum number of {@link org.hibernate.engine.query.spi.ParameterMetadata} maintained 
+	 * by {@link org.hibernate.engine.query.spi.QueryPlanCache}. Default is 128.
+	 */
+	public static final String QUERY_PLAN_CACHE_PARAMETER_METADATA_MAX_SIZE = "hibernate.query.plan_parameter_metadata_max_size";
 
 	/**
 	 * Should we not use contextual LOB creation (aka based on {@link java.sql.Connection#createBlob()} et al).
 	 */
 	public static final String NON_CONTEXTUAL_LOB_CREATION = "hibernate.jdbc.lob.non_contextual_creation";
-
-	/**
-	 * Strategy for multi-tenancy.
-
-	 * @see org.hibernate.MultiTenancyStrategy
-	 * @since 4.0
-	 */
-	public static final String MULTI_TENANT = "hibernate.multiTenancy";
 
 	/**
 	 * Names the {@link ClassLoader} used to load user application classes.
@@ -521,4 +554,42 @@ public interface AvailableSettings {
 	 * Default to false to keep backward compatibility.
 	 */
 	public static final String USE_NEW_ID_GENERATOR_MAPPINGS = "hibernate.id.new_generator_mappings";
+
+	/**
+	 * Setting to identify a {@link org.hibernate.CustomEntityDirtinessStrategy} to use.  May point to
+	 * either a class name or instance.
+	 */
+	public static final String CUSTOM_ENTITY_DIRTINESS_STRATEGY = "hibernate.entity_dirtiness_strategy";
+
+	/**
+	 * Strategy for multi-tenancy.
+
+	 * @see org.hibernate.MultiTenancyStrategy
+	 * @since 4.0
+	 */
+	public static final String MULTI_TENANT = "hibernate.multiTenancy";
+
+	/**
+	 * Names a {@link org.hibernate.service.jdbc.connections.spi.MultiTenantConnectionProvider} implementation to
+	 * use.  As MultiTenantConnectionProvider is also a service, can be configured directly through the
+	 * {@link org.hibernate.service.ServiceRegistryBuilder}
+	 *
+	 * @since 4.1
+	 */
+	public static final String MULTI_TENANT_CONNECTION_PROVIDER = "hibernate.multi_tenant_connection_provider";
+
+	/**
+	 * Names a {@link org.hibernate.context.spi.CurrentTenantIdentifierResolver} implementation to use.
+	 * <p/>
+	 * Can be<ul>
+	 *     <li>CurrentTenantIdentifierResolver instance</li>
+	 *     <li>CurrentTenantIdentifierResolver implementation {@link Class} reference</li>
+	 *     <li>CurrentTenantIdentifierResolver implementation class name</li>
+	 * </ul>
+	 *
+	 * @since 4.1
+	 */
+	public static final String MULTI_TENANT_IDENTIFIER_RESOLVER = "hibernate.tenant_identifier_resolver";
+
+	public static final String FORCE_DISCRIMINATOR_IN_SELECTS_BY_DEFAULT = "hibernate.discriminator.force_in_select";
 }

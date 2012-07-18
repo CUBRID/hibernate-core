@@ -24,6 +24,7 @@
  */
 package org.hibernate.id.factory;
 import java.util.Properties;
+
 import org.hibernate.dialect.Dialect;
 import org.hibernate.id.IdentifierGenerator;
 import org.hibernate.type.Type;

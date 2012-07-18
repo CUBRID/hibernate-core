@@ -23,21 +23,22 @@
  */
 package org.hibernate.ejb.test.query;
 
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
 import javax.persistence.TemporalType;
 import javax.persistence.Tuple;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+
+import org.junit.Test;
 
 import org.hibernate.Hibernate;
 import org.hibernate.ejb.test.BaseEntityManagerFunctionalTestCase;
 import org.hibernate.ejb.test.Distributor;
 import org.hibernate.ejb.test.Item;
 import org.hibernate.ejb.test.Wallet;
-
-import org.junit.Test;
+import org.hibernate.testing.TestForIssue;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -46,8 +47,30 @@ import static org.junit.Assert.fail;
 
 /**
  * @author Emmanuel Bernard
+ * @author Steve Ebersole
  */
 public class QueryTest extends BaseEntityManagerFunctionalTestCase {
+	@Test
+	@TestForIssue( jiraKey = "HHH-7192" )
+	public void testTypedManipulationQueryError() {
+		EntityManager em = getOrCreateEntityManager();
+		em.getTransaction().begin();
+
+		try {
+			em.createQuery( "delete Item", Item.class );
+			fail();
+		}
+		catch (IllegalArgumentException expected) {
+		}
+
+		try {
+			em.createQuery( "update Item i set i.name = 'someName'", Item.class );
+			fail();
+		}
+		catch (IllegalArgumentException expected) {
+		}
+	}
+	
 	@Test
 	public void testPagedQuery() throws Exception {
 		EntityManager em = getOrCreateEntityManager();
@@ -79,6 +102,22 @@ public class QueryTest extends BaseEntityManagerFunctionalTestCase {
 		Query q = em.createQuery( "select count(i) from Item i where i.name like :itemName" );
 		q.setParameter( "itemName", "%" );
 		assertTrue( q.getSingleResult() instanceof Long );
+		em.getTransaction().rollback();
+		em.close();
+	}
+
+	public void testTypeExpression() throws Exception {
+		EntityManager em = getOrCreateEntityManager();
+		em.getTransaction().begin();
+		Item item = new Item( "Mouse", "Micro$oft mouse" );
+		em.persist( item );
+		item = new Item( "Computer", "Apple II" );
+		em.persist( item );
+		Query q = em.createQuery( "select i from Item i where TYPE(i) = :itemType" );
+		q.setParameter( "itemType", Item.class );
+		List result = q.getResultList();
+		assertNotNull( result );
+		assertEquals( 2, result.size() );
 		em.getTransaction().rollback();
 		em.close();
 	}
@@ -542,6 +581,9 @@ public class QueryTest extends BaseEntityManagerFunctionalTestCase {
 		assertEquals( String.class, itemTuple.get( 0 ).getClass() );
 		assertEquals( String.class, itemTuple.get( 1 ).getClass() );
 		Item itemView = em.createQuery( "select new Item(i.name,i.descr) from Item i", Item.class ).getSingleResult();
+		assertNotNull( itemView );
+		assertEquals( "Micro$oft mouse", itemView.getDescr() );
+		itemView = em.createNamedQuery( "query-construct", Item.class ).getSingleResult();
 		assertNotNull( itemView );
 		assertEquals( "Micro$oft mouse", itemView.getDescr() );
 		em.remove( item );

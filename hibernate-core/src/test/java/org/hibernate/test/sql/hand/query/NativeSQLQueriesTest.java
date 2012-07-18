@@ -8,28 +8,20 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.Test;
+
 import org.hibernate.Hibernate;
 import org.hibernate.HibernateException;
 import org.hibernate.Query;
+import org.hibernate.QueryException;
 import org.hibernate.SQLQuery;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
 import org.hibernate.dialect.H2Dialect;
+import org.hibernate.dialect.MySQL5Dialect;
 import org.hibernate.internal.util.collections.ArrayHelper;
-import org.hibernate.transform.BasicTransformerAdapter;
-import org.hibernate.transform.DistinctRootEntityResultTransformer;
-import org.hibernate.transform.Transformers;
-import org.hibernate.type.FloatType;
-import org.hibernate.type.LongType;
-import org.hibernate.type.StringType;
-import org.hibernate.type.TimestampType;
-
-import org.junit.Test;
-
-import org.hibernate.testing.FailureExpected;
-import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 import org.hibernate.test.sql.hand.Dimension;
 import org.hibernate.test.sql.hand.Employment;
 import org.hibernate.test.sql.hand.Group;
@@ -41,6 +33,17 @@ import org.hibernate.test.sql.hand.Product;
 import org.hibernate.test.sql.hand.SpaceShip;
 import org.hibernate.test.sql.hand.Speech;
 import org.hibernate.test.sql.hand.TextHolder;
+import org.hibernate.testing.FailureExpected;
+import org.hibernate.testing.RequiresDialect;
+import org.hibernate.testing.SkipForDialect;
+import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
+import org.hibernate.transform.BasicTransformerAdapter;
+import org.hibernate.transform.DistinctRootEntityResultTransformer;
+import org.hibernate.transform.Transformers;
+import org.hibernate.type.FloatType;
+import org.hibernate.type.LongType;
+import org.hibernate.type.StringType;
+import org.hibernate.type.TimestampType;
 
 import static org.hibernate.testing.junit4.ExtraAssertions.assertClassAssignability;
 import static org.junit.Assert.assertEquals;
@@ -106,14 +109,15 @@ public class NativeSQLQueriesTest extends BaseCoreFunctionalTestCase {
 	}
 
 	protected String getDescriptionsSQL() {
-		return "select DESCRIPTION from TEXTHOLDER";
+		return "select DESCRIPTION from TEXT_HOLDER";
 	}
 
 	protected String getPhotosSQL() {
-		return "select PHOTO from IMAGEHOLDER";
+		return "select PHOTO from IMAGE_HOLDER";
 	}
 
 	@Test
+    @SkipForDialect( H2Dialect.class )
 	public void testFailOnNoAddEntityOrScalar() {
 		// Note: this passes, but for the wrong reason.
 		//      there is actually an exception thrown, but it is the database
@@ -121,9 +125,6 @@ public class NativeSQLQueriesTest extends BaseCoreFunctionalTestCase {
 		//      "un-processed"...
 		//
 		// Oddly, H2 accepts this query.
-		if ( H2Dialect.class.isInstance( getDialect() ) ) {
-			return;
-		}
 		Session s = openSession();
 		s.beginTransaction();
 		try {
@@ -835,9 +836,20 @@ public class NativeSQLQueriesTest extends BaseCoreFunctionalTestCase {
 		t.commit();
 		s.close();
 	}
+	@Test
+	@RequiresDialect(MySQL5Dialect.class)
+	public void testEscapeColonInSQL() throws QueryException {
+		Session s = openSession();
+		Transaction t = s.beginTransaction();
+		SQLQuery query = s.createSQLQuery( "SELECT @row \\:= 1" );
+		List list = query.list();
+		assertTrue( list.get( 0 ).toString().equals( "1" ) );
+		t.commit();
+		s.close();
+	}
 
 	private String buildLongString(int size, char baseChar) {
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		for( int i = 0; i < size; i++ ) {
 			buff.append( baseChar );
 		}

@@ -22,10 +22,9 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate.test.lob;
-import org.hibernate.Session;
-
 import org.junit.Test;
 
+import org.hibernate.Session;
 import org.hibernate.dialect.SybaseASE15Dialect;
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
@@ -107,7 +106,7 @@ public abstract class LongStringTest extends BaseCoreFunctionalTestCase {
 	}
 
 	private String buildRecursively(int size, char baseChar) {
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		for( int i = 0; i < size; i++ ) {
 			buff.append( baseChar );
 		}

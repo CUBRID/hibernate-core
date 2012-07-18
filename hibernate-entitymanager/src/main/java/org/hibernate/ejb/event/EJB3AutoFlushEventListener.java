@@ -23,10 +23,11 @@
  */
 package org.hibernate.ejb.event;
 
+import java.util.IdentityHashMap;
+
 import org.hibernate.engine.spi.CascadingAction;
-import org.hibernate.event.spi.AutoFlushEventListener;
 import org.hibernate.event.internal.DefaultAutoFlushEventListener;
-import org.hibernate.internal.util.collections.IdentityMap;
+import org.hibernate.event.spi.AutoFlushEventListener;
 
 /**
  * In JPA, it is the create operation that is cascaded to unmanaged entities at flush time (instead of the save-update
@@ -45,7 +46,7 @@ public class EJB3AutoFlushEventListener
 	}
 
 	protected Object getAnything() {
-		return IdentityMap.instantiate( 10 );
+		return new IdentityHashMap( 10 );
 	}
 
 }

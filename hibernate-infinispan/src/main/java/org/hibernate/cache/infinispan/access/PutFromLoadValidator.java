@@ -22,6 +22,7 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate.cache.infinispan.access;
+
 import java.lang.ref.WeakReference;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -35,11 +36,12 @@ import java.util.concurrent.locks.ReentrantLock;
 import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
+
 import org.hibernate.cache.CacheException;
 
 /**
  * Encapsulates logic to allow a {@link TransactionalAccessDelegate} to determine
- * whether a {@link TransactionalAccessDelegate#putFromLoad(Object, Object, long, Object, boolean)
+ * whether a {@link TransactionalAccessDelegate#putFromLoad(Object, Object, long, Object, boolean)}
  * call should be allowed to update the cache. A <code>putFromLoad</code> has
  * the potential to store stale data, since the data may have been removed from the
  * database and the cache between the time when the data was read from the database 

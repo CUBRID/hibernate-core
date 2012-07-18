@@ -26,15 +26,14 @@ package org.hibernate.test.unionsubclass;
 import java.util.Iterator;
 import java.util.List;
 
+import org.junit.Test;
+
 import org.hibernate.FetchMode;
 import org.hibernate.Hibernate;
 import org.hibernate.Query;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.criterion.Order;
-
-import org.junit.Test;
-
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
@@ -318,6 +317,8 @@ public class UnionSubclassTest extends BaseCoreFunctionalTestCase {
 		
 		assertEquals( s.createQuery("from Being").list().size(), 2 );
 		assertEquals( s.createQuery("from Being b where b.class = Alien").list().size(), 1 );
+		assertEquals( s.createQuery("from Being b where type(b) = :what").setParameter("what", Alien.class).list().size(), 1 );
+		assertEquals( s.createQuery("from Being b where type(b) in :what").setParameterList("what", new Class[] { Alien.class, Human.class }).list().size(), 2 );
 		assertEquals( s.createQuery("from Alien").list().size(), 1 );
 		s.clear();
 

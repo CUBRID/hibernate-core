@@ -23,7 +23,20 @@
  */
 package org.hibernate.envers.configuration.metadata;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import javax.persistence.JoinColumn;
+
 import org.dom4j.Element;
+import org.jboss.logging.Logger;
+
 import org.hibernate.MappingException;
 import org.hibernate.envers.ModificationStore;
 import org.hibernate.envers.RelationTargetAuditMode;
@@ -35,9 +48,26 @@ import org.hibernate.envers.entities.mapper.CompositeMapperBuilder;
 import org.hibernate.envers.entities.mapper.PropertyMapper;
 import org.hibernate.envers.entities.mapper.SinglePropertyMapper;
 import org.hibernate.envers.entities.mapper.id.IdMapper;
-import org.hibernate.envers.entities.mapper.relation.*;
-import org.hibernate.envers.entities.mapper.relation.component.*;
-import org.hibernate.envers.entities.mapper.relation.lazy.proxy.*;
+import org.hibernate.envers.entities.mapper.relation.BasicCollectionMapper;
+import org.hibernate.envers.entities.mapper.relation.CommonCollectionMapperData;
+import org.hibernate.envers.entities.mapper.relation.ListCollectionMapper;
+import org.hibernate.envers.entities.mapper.relation.MapCollectionMapper;
+import org.hibernate.envers.entities.mapper.relation.MiddleComponentData;
+import org.hibernate.envers.entities.mapper.relation.MiddleIdData;
+import org.hibernate.envers.entities.mapper.relation.SortedMapCollectionMapper;
+import org.hibernate.envers.entities.mapper.relation.SortedSetCollectionMapper;
+import org.hibernate.envers.entities.mapper.relation.ToOneIdMapper;
+import org.hibernate.envers.entities.mapper.relation.component.MiddleDummyComponentMapper;
+import org.hibernate.envers.entities.mapper.relation.component.MiddleMapKeyIdComponentMapper;
+import org.hibernate.envers.entities.mapper.relation.component.MiddleMapKeyPropertyComponentMapper;
+import org.hibernate.envers.entities.mapper.relation.component.MiddleRelatedComponentMapper;
+import org.hibernate.envers.entities.mapper.relation.component.MiddleSimpleComponentMapper;
+import org.hibernate.envers.entities.mapper.relation.component.MiddleStraightComponentMapper;
+import org.hibernate.envers.entities.mapper.relation.lazy.proxy.ListProxy;
+import org.hibernate.envers.entities.mapper.relation.lazy.proxy.MapProxy;
+import org.hibernate.envers.entities.mapper.relation.lazy.proxy.SetProxy;
+import org.hibernate.envers.entities.mapper.relation.lazy.proxy.SortedMapProxy;
+import org.hibernate.envers.entities.mapper.relation.lazy.proxy.SortedSetProxy;
 import org.hibernate.envers.entities.mapper.relation.query.OneAuditEntityQueryGenerator;
 import org.hibernate.envers.entities.mapper.relation.query.RelationQueryGenerator;
 import org.hibernate.envers.internal.EnversMessageLogger;
@@ -45,20 +75,26 @@ import org.hibernate.envers.tools.MappingTools;
 import org.hibernate.envers.tools.StringTools;
 import org.hibernate.envers.tools.Tools;
 import org.hibernate.mapping.Collection;
-import org.hibernate.mapping.*;
-import org.hibernate.type.*;
-import org.jboss.logging.Logger;
-
-import javax.persistence.JoinColumn;
-import java.util.*;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import org.hibernate.mapping.IndexedCollection;
+import org.hibernate.mapping.ManyToOne;
+import org.hibernate.mapping.OneToMany;
+import org.hibernate.mapping.PersistentClass;
+import org.hibernate.mapping.Property;
+import org.hibernate.mapping.Table;
+import org.hibernate.mapping.Value;
+import org.hibernate.type.BagType;
+import org.hibernate.type.ListType;
+import org.hibernate.type.ManyToOneType;
+import org.hibernate.type.MapType;
+import org.hibernate.type.SetType;
+import org.hibernate.type.SortedMapType;
+import org.hibernate.type.SortedSetType;
+import org.hibernate.type.Type;
 
 /**
  * Generates metadata for a collection-valued property.
  * @author Adam Warski (adam at warski dot org)
- * @author Hern�n Chanfreau
+ * @author HernпїЅn Chanfreau
  */
 public final class CollectionMetadataGenerator {
 
@@ -113,12 +149,14 @@ public final class CollectionMetadataGenerator {
 
     void addCollection() {
         Type type = propertyValue.getType();
+        Value value = propertyValue.getElement();
 
         boolean oneToManyAttachedType = type instanceof BagType || type instanceof SetType || type instanceof MapType || type instanceof ListType;
-        boolean inverseOneToMany = (propertyValue.getElement() instanceof OneToMany) && (propertyValue.isInverse());
-        boolean fakeOneToManyBidirectional = (propertyValue.getElement() instanceof OneToMany) && (propertyAuditingData.getAuditMappedBy() != null);
+        boolean inverseOneToMany = (value instanceof OneToMany) && (propertyValue.isInverse());
+        boolean owningManyToOneWithJoinTableBidirectional = (value instanceof ManyToOne) && (propertyAuditingData.getAuditMappedBy() != null);
+        boolean fakeOneToManyBidirectional = (value instanceof OneToMany) && (propertyAuditingData.getAuditMappedBy() != null);
 
-        if (oneToManyAttachedType && (inverseOneToMany || fakeOneToManyBidirectional)) {
+        if (oneToManyAttachedType && (inverseOneToMany || fakeOneToManyBidirectional || owningManyToOneWithJoinTableBidirectional)) {
             // A one-to-many relation mapped using @ManyToOne and @OneToMany(mappedBy="...")
             addOneToManyAttached(fakeOneToManyBidirectional);
         } else {
@@ -515,7 +553,15 @@ public final class CollectionMetadataGenerator {
     }
 
     private String getMappedBy(Collection collectionValue) {
-        PersistentClass referencedClass = ((OneToMany) collectionValue.getElement()).getAssociatedClass();
+        PersistentClass referencedClass = null;
+        if (collectionValue.getElement() instanceof OneToMany) {
+            OneToMany oneToManyValue = (OneToMany) collectionValue.getElement();
+            referencedClass = oneToManyValue.getAssociatedClass();
+        } else if (collectionValue.getElement() instanceof ManyToOne) {
+            // Case for bi-directional relation with @JoinTable on the owning @ManyToOne side.
+            ManyToOne manyToOneValue = (ManyToOne) collectionValue.getElement();
+            referencedClass = manyToOneValue.getMappings().getClass(manyToOneValue.getReferencedEntityName());
+        }
 
         // If there's an @AuditMappedBy specified, returning it directly.
         String auditMappedBy = propertyAuditingData.getAuditMappedBy();

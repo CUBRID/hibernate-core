@@ -23,17 +23,17 @@
  */
 package org.hibernate.cfg.annotations;
 
+import java.io.Serializable;
+import java.sql.Types;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Properties;
 import javax.persistence.Enumerated;
 import javax.persistence.Lob;
 import javax.persistence.MapKeyEnumerated;
 import javax.persistence.MapKeyTemporal;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
-import java.io.Serializable;
-import java.sql.Types;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Properties;
 
 import org.jboss.logging.Logger;
 
@@ -301,7 +301,7 @@ public class SimpleValueBinder {
 	public SimpleValue make() {
 
 		validate();
-        LOG.debugf("building SimpleValue for %s", propertyName);
+		LOG.debugf( "building SimpleValue for %s", propertyName );
 		if ( table == null ) {
 			table = columns[0].getTable();
 		}
@@ -339,7 +339,7 @@ public class SimpleValueBinder {
 
 	public void fillSimpleValue() {
 
-        LOG.debugf("Setting SimpleValue typeName for %s", propertyName);
+		LOG.debugf( "Setting SimpleValue typeName for %s", propertyName );
 
 		String type = BinderHelper.isEmptyAnnotationValue( explicitType ) ? returnedClassName : explicitType;
 		org.hibernate.mapping.TypeDef typeDef = mappings.getTypeDef( type );

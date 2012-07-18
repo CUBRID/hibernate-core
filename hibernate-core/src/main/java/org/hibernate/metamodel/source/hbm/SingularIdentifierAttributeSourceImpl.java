@@ -26,6 +26,7 @@ package org.hibernate.metamodel.source.hbm;
 import java.util.List;
 import java.util.Map;
 
+import org.hibernate.internal.jaxb.mapping.hbm.JaxbHibernateMapping;
 import org.hibernate.mapping.PropertyGeneration;
 import org.hibernate.metamodel.source.LocalBindingContext;
 import org.hibernate.metamodel.source.binder.ExplicitHibernateTypeSource;
@@ -33,7 +34,6 @@ import org.hibernate.metamodel.source.binder.MetaAttributeSource;
 import org.hibernate.metamodel.source.binder.RelationalValueSource;
 import org.hibernate.metamodel.source.binder.SingularAttributeNature;
 import org.hibernate.metamodel.source.binder.SingularAttributeSource;
-import org.hibernate.metamodel.source.hbm.jaxb.mapping.XMLHibernateMapping;
 
 /**
  * Implementation for {@code <id/>} mappings
@@ -41,12 +41,12 @@ import org.hibernate.metamodel.source.hbm.jaxb.mapping.XMLHibernateMapping;
  * @author Steve Ebersole
  */
 class SingularIdentifierAttributeSourceImpl implements SingularAttributeSource {
-	private final XMLHibernateMapping.XMLClass.XMLId idElement;
+	private final JaxbHibernateMapping.JaxbClass.JaxbId idElement;
 	private final ExplicitHibernateTypeSource typeSource;
 	private final List<RelationalValueSource> valueSources;
 
 	public SingularIdentifierAttributeSourceImpl(
-			final XMLHibernateMapping.XMLClass.XMLId idElement,
+			final JaxbHibernateMapping.JaxbClass.JaxbId idElement,
 			LocalBindingContext bindingContext) {
 		this.idElement = idElement;
 		this.typeSource = new ExplicitHibernateTypeSource() {
@@ -101,7 +101,12 @@ class SingularIdentifierAttributeSourceImpl implements SingularAttributeSource {
 					public boolean isIncludedInUpdateByDefault() {
 						return false;
 					}
-				},
+
+                    @Override
+                    public boolean isForceNotNull() {
+                        return true;
+                    }
+                },
 				bindingContext
 		);
 	}

@@ -25,6 +25,7 @@ package org.hibernate.internal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+
 import org.hibernate.HibernateException;
 import org.hibernate.MappingException;
 import org.hibernate.engine.spi.QueryParameters;
@@ -103,7 +104,7 @@ public class FetchingScrollableResultsImpl extends AbstractScrollableResults {
 		if ( afterLast ) {
 			if ( maxPosition == null ) {
 				// we just hit the last position
-				maxPosition = new Integer( currentPosition );
+				maxPosition = currentPosition;
 			}
 		}
 

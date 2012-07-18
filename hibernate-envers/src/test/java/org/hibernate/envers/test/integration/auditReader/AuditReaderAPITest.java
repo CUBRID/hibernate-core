@@ -23,21 +23,22 @@
  */
 package org.hibernate.envers.test.integration.auditReader;
 
-import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.exception.NotAuditedException;
-import org.hibernate.envers.test.AbstractEntityTest;
-import org.hibernate.envers.test.Priority;
+import java.util.Arrays;
+import javax.persistence.EntityManager;
+
 import org.junit.Test;
 
-import javax.persistence.EntityManager;
-import java.util.Arrays;
+import org.hibernate.ejb.Ejb3Configuration;
+import org.hibernate.envers.exception.NotAuditedException;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
+import org.hibernate.envers.test.Priority;
 
 /**
  * A test which checks the correct behavior of AuditReader.isEntityClassAudited(Class entityClass).
  * 
  * @author Hernan Chanfreau
  */
-public class AuditReaderAPITest extends AbstractEntityTest {
+public class AuditReaderAPITest extends BaseEnversJPAFunctionalTestCase {
     public void configure(Ejb3Configuration cfg) {
         cfg.addAnnotatedClass(AuditedTestEntity.class);
         cfg.addAnnotatedClass(NotAuditedTestEntity.class);

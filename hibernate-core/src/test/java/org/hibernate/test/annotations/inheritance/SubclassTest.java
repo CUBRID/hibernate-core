@@ -25,13 +25,11 @@ package org.hibernate.test.annotations.inheritance;
 
 import java.util.List;
 
+import org.junit.Test;
+
 import org.hibernate.Query;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-
-import org.junit.Test;
-
-import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 import org.hibernate.test.annotations.A320;
 import org.hibernate.test.annotations.A320b;
 import org.hibernate.test.annotations.Plane;
@@ -39,6 +37,7 @@ import org.hibernate.test.annotations.inheritance.singletable.Funk;
 import org.hibernate.test.annotations.inheritance.singletable.Music;
 import org.hibernate.test.annotations.inheritance.singletable.Noise;
 import org.hibernate.test.annotations.inheritance.singletable.Rock;
+import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -50,6 +49,10 @@ import static org.junit.Assert.assertTrue;
  * @author Emmanuel Bernard
  */
 public class SubclassTest extends BaseCoreFunctionalTestCase {
+	@Override
+	protected boolean isCleanupTestDataRequired() {
+		return true;
+	}
 	@Test
 	public void testPolymorphism() throws Exception {
 		Session s = openSession();

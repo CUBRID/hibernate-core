@@ -22,17 +22,18 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate.test.lob;
-import java.sql.Clob;
 
-import org.hibernate.LockMode;
-import org.hibernate.Session;
-import org.hibernate.type.descriptor.java.DataHelper;
+import java.sql.Clob;
 
 import org.junit.Test;
 
+import org.hibernate.LockMode;
+import org.hibernate.Session;
+import org.hibernate.dialect.SybaseASE157Dialect;
 import org.hibernate.testing.DialectChecks;
 import org.hibernate.testing.RequiresDialectFeature;
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
+import org.hibernate.type.descriptor.java.DataHelper;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -111,25 +112,27 @@ public class ClobLocatorTest extends BaseCoreFunctionalTestCase {
 		s.close();
 
 		// test empty clob
-		s = openSession();
-		s.beginTransaction();
-		entity = ( LobHolder ) s.get( LobHolder.class, entity.getId() );
-		assertEquals( CLOB_SIZE, entity.getClobLocator().length() );
-		assertEquals( changed, extractData( entity.getClobLocator() ) );
-		entity.setClobLocator( s.getLobHelper().createClob( empty ) );
-		s.getTransaction().commit();
-		s.close();
+		if ( !(getDialect() instanceof SybaseASE157Dialect) ) { // Skip for Sybase. HHH-6425
+			s = openSession();
+			s.beginTransaction();
+			entity = ( LobHolder ) s.get( LobHolder.class, entity.getId() );
+			assertEquals( CLOB_SIZE, entity.getClobLocator().length() );
+			assertEquals( changed, extractData( entity.getClobLocator() ) );
+			entity.setClobLocator( s.getLobHelper().createClob( empty ) );
+			s.getTransaction().commit();
+			s.close();
 
-		s = openSession();
-		s.beginTransaction();
-		entity = ( LobHolder ) s.get( LobHolder.class, entity.getId() );
-		if ( entity.getClobLocator() != null) {
-			assertEquals( empty.length(), entity.getClobLocator().length() );
-			assertEquals( empty, extractData( entity.getClobLocator() ) );
+			s = openSession();
+			s.beginTransaction();
+			entity = ( LobHolder ) s.get( LobHolder.class, entity.getId() );
+			if ( entity.getClobLocator() != null) {
+				assertEquals( empty.length(), entity.getClobLocator().length() );
+				assertEquals( empty, extractData( entity.getClobLocator() ) );
+			}
+			s.delete( entity );
+			s.getTransaction().commit();
+			s.close();
 		}
-		s.delete( entity );
-		s.getTransaction().commit();
-		s.close();
 
 	}
 
@@ -176,7 +179,7 @@ public class ClobLocatorTest extends BaseCoreFunctionalTestCase {
 	}
 
 	public static String buildString(int size, char baseChar) {
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		for( int i = 0; i < size; i++ ) {
 			buff.append( baseChar );
 		}

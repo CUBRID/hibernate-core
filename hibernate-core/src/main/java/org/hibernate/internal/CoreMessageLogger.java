@@ -214,7 +214,7 @@ public interface CoreMessageLogger extends BasicLogger {
 	void deprecatedOracleDialect();
 
 	@LogMessage(level = WARN)
-	@Message(value = "DEPRECATED : use {} instead with custom {} implementation", id = 65)
+	@Message(value = "DEPRECATED : use [%s] instead with custom [%s] implementation", id = 65)
 	void deprecatedUuidGenerator(String name,
 								 String name2);
 
@@ -345,10 +345,6 @@ public interface CoreMessageLogger extends BasicLogger {
 	void fetchingDatabaseMetadata();
 
 	@LogMessage(level = WARN)
-	@Message(value = "@Filter not allowed on subclasses (ignored): %s", id = 103)
-	void filterAnnotationOnSubclass(String className);
-
-	@LogMessage(level = WARN)
 	@Message(value = "firstResult/maxResults specified with collection fetch; applying in memory!", id = 104)
 	void firstOrMaxResultsSpecifiedWithCollectionFetch();
 
@@ -396,7 +392,7 @@ public interface CoreMessageLogger extends BasicLogger {
 								  String incrementParam,
 								  int incrementSize);
 
-	@LogMessage(level = INFO)
+	@LogMessage(level = DEBUG)
 	@Message(value = "HQL: %s, time: %sms, rows: %s", id = 117)
 	void hql(String hql,
 			 Long valueOf,
@@ -611,7 +607,7 @@ public interface CoreMessageLogger extends BasicLogger {
 	@Message(value = "Overriding %s is dangerous, this might break the EJB3 specification implementation", id = 193)
 	void overridingTransactionStrategyDangerous(String transactionStrategy);
 
-	@LogMessage(level = WARN)
+	@LogMessage(level = DEBUG)
 	@Message(value = "Package not found or wo package-info.java: %s", id = 194)
 	void packageNotFound(String packageName);
 
@@ -1096,6 +1092,10 @@ public interface CoreMessageLogger extends BasicLogger {
 														 String message);
 
 	@LogMessage(level = WARN)
+	@Message(value = "Unable to interpret specified optimizer [%s], falling back to noop", id = 321)
+	void unableToLocateCustomOptimizerClass(String type);
+
+	@LogMessage(level = WARN)
 	@Message(value = "Unable to instantiate specified optimizer [%s], falling back to noop", id = 322)
 	void unableToInstantiateOptimizer(String type);
 
@@ -1130,10 +1130,6 @@ public interface CoreMessageLogger extends BasicLogger {
 	@LogMessage(level = WARN)
 	@Message(value = "Unable to locate MBeanServer on JMX service shutdown", id = 332)
 	void unableToLocateMBeanServer();
-
-	@LogMessage(level = INFO)
-	@Message(value = "Could not locate 'java.sql.NClob' class; assuming JDBC 3", id = 333)
-	void unableToLocateNClobClass();
 
 	@LogMessage(level = WARN)
 	@Message(value = "Unable to locate requested UUID generation strategy class : %s", id = 334)
@@ -1234,7 +1230,7 @@ public interface CoreMessageLogger extends BasicLogger {
 	void unableToRemoveBagJoinFetch();
 
 	@LogMessage(level = INFO)
-	@Message(value = "Could not resolve aggregate function {}; using standard definition", id = 359)
+	@Message(value = "Could not resolve aggregate function [%s]; using standard definition", id = 359)
 	void unableToResolveAggregateFunction(String name);
 
 	@LogMessage(level = INFO)
@@ -1443,7 +1439,7 @@ public interface CoreMessageLogger extends BasicLogger {
 	void validatorNotFound();
 
 	@LogMessage(level = INFO)
-	@Message(value = "Hibernate %s", id = 412)
+	@Message(value = "Hibernate Core {%s}", id = 412)
 	void version(String versionString);
 
 	@LogMessage(level = WARN)
@@ -1498,7 +1494,7 @@ public interface CoreMessageLogger extends BasicLogger {
 	void disablingContextualLOBCreationSinceCreateClobFailed(Throwable t);
 
 	@LogMessage(level = INFO)
-	@Message(value = "Could not close session; swallowing exception as transaction completed", id = 425)
+	@Message(value = "Could not close session; swallowing exception[%s] as transaction completed", id = 425)
 	void unableToCloseSessionButSwallowingError(HibernateException e);
 
 	@LogMessage(level = WARN)
@@ -1534,4 +1530,48 @@ public interface CoreMessageLogger extends BasicLogger {
 	@LogMessage(level = WARN)
 	@Message(value = "There were not column names specified for index %s on table %s", id = 432)
 	void noColumnsSpecifiedForIndex(String indexName, String tableName);
+
+	@LogMessage(level = INFO)
+	@Message(value = "update timestamps cache puts: %s", id = 433)
+	void timestampCachePuts(long updateTimestampsCachePutCount);
+
+	@LogMessage(level = INFO)
+	@Message(value = "update timestamps cache hits: %s", id = 434)
+	void timestampCacheHits(long updateTimestampsCachePutCount);
+
+	@LogMessage(level = INFO)
+	@Message(value = "update timestamps cache misses: %s", id = 435)
+	void timestampCacheMisses(long updateTimestampsCachePutCount);
+
+	@LogMessage(level = WARN)
+	@Message(value = "Entity manager factory name (%s) is already registered.  If entity manager will be clustered "+
+			"or passivated, specify a unique value for property '%s'", id = 436)
+	void entityManagerFactoryAlreadyRegistered(String emfName, String propertyName);
+
+	@LogMessage(level = WARN)
+	@Message(value = "Attempting to save one or more entities that have a non-nullable association with an unsaved transient entity. The unsaved transient entity must be saved in an operation prior to saving these dependent entities.\n" +
+			"\tUnsaved transient entity: (%s)\n\tDependent entities: (%s)\n\tNon-nullable association(s): (%s)" , id = 437)
+	void cannotResolveNonNullableTransientDependencies(String transientEntityString,
+													   Set<String> dependentEntityStrings,
+													   Set<String> nonNullableAssociationPaths);
+
+	@LogMessage(level = INFO)
+	@Message(value = "NaturalId cache puts: %s", id = 438)
+	void naturalIdCachePuts(long naturalIdCachePutCount);
+
+	@LogMessage(level = INFO)
+	@Message(value = "NaturalId cache hits: %s", id = 439)
+	void naturalIdCacheHits(long naturalIdCacheHitCount);
+
+	@LogMessage(level = INFO)
+	@Message(value = "NaturalId cache misses: %s", id = 440)
+	void naturalIdCacheMisses(long naturalIdCacheMissCount);
+
+	@LogMessage(level = INFO)
+	@Message(value = "Max NaturalId query time: %sms", id = 441)
+	void naturalIdMaxQueryTime(long naturalIdQueryExecutionMaxTime);
+	
+	@LogMessage(level = INFO)
+	@Message(value = "NaturalId queries executed to database: %s", id = 442)
+	void naturalIdQueriesExecuted(long naturalIdQueriesExecutionCount);
 }

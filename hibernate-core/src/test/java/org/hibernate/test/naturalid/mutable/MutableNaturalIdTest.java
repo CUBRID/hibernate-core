@@ -22,21 +22,23 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate.test.naturalid.mutable;
+
 import java.lang.reflect.Field;
 
+import org.junit.Test;
+
 import org.hibernate.HibernateException;
+import org.hibernate.LockOptions;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
 import org.hibernate.criterion.Restrictions;
-
-import org.junit.Test;
-
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 
 /**
@@ -56,6 +58,32 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 	}
 
 	@Test
+	public void testCacheSynchronizationOnMutation() {
+		Session s = openSession();
+		Transaction t = s.beginTransaction();
+		User u = new User( "gavin", "hb", "secret" );
+		s.persist( u );
+		t.commit();
+		s.close();
+
+		s = openSession();
+		s.beginTransaction();
+		u = (User) s.byId( User.class ).getReference( u.getId() );
+		u.setOrg( "ceylon" );
+		User oldNaturalId = (User) s.byNaturalId( User.class ).using( "name", "gavin" ).using( "org", "hb" ).load();
+		assertNull( oldNaturalId );
+		assertNotSame( u, oldNaturalId );
+		s.getTransaction().commit();
+		s.close();
+
+		s = openSession();
+		s.beginTransaction();
+		s.delete( u );
+		s.getTransaction().commit();
+		s.close();
+	}
+
+	@Test
 	public void testReattachmentNaturalIdCheck() throws Throwable {
 		Session s = openSession();
 		s.beginTransaction();
@@ -71,6 +99,7 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 		s.beginTransaction();
 		try {
 			s.update( u );
+			assertNotNull(s.byNaturalId(User.class).using("name","Gavin").using("org", "hb").load());
 			s.getTransaction().commit();
 		}
 		catch( HibernateException expected ) {
@@ -94,6 +123,50 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 		s.getTransaction().commit();
 		s.close();
 	}
+	
+	
+	@Test
+	public void testReattachmentUnmodifiedNaturalIdCheck() throws Throwable {
+		Session s = openSession();
+		s.beginTransaction();
+		User u = new User( "gavin", "hb", "secret" );
+		s.persist( u );
+		s.getTransaction().commit();
+		s.close();
+
+		
+		s = openSession();
+		s.beginTransaction();
+		try {
+			s.buildLockRequest(LockOptions.NONE).lock(u);
+			Field name = u.getClass().getDeclaredField("name");
+			name.setAccessible(true);
+			name.set(u, "Gavin");
+			assertNotNull(s.byNaturalId(User.class).using("name","Gavin").using("org", "hb").load());
+			s.getTransaction().commit();
+		}
+		catch( HibernateException expected ) {
+			s.getTransaction().rollback();
+		}
+		catch( Throwable t ) {
+			try {
+				s.getTransaction().rollback();
+			}
+			catch ( Throwable ignore ) {
+			}
+			throw t;
+		}
+		finally {
+			s.close();
+		}
+
+		s = openSession();
+		s.beginTransaction();
+		s.delete( u );
+		s.getTransaction().commit();
+		s.close();
+	}
+	
 
 	@Test
 	public void testNonexistentNaturalIdCache() {
@@ -115,9 +188,9 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 		t.commit();
 		s.close();
 
-		assertEquals( sessionFactory().getStatistics().getQueryExecutionCount(), 1 );
-		assertEquals( sessionFactory().getStatistics().getQueryCacheHitCount(), 0 );
-		assertEquals( sessionFactory().getStatistics().getQueryCachePutCount(), 0 );
+		assertEquals( 1, sessionFactory().getStatistics().getNaturalIdQueryExecutionCount(), 1 );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCacheHitCount(), 0 );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCachePutCount(), 0 );
 
 		s = openSession();
 		t = s.beginTransaction();
@@ -146,9 +219,9 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 		t.commit();
 		s.close();
 
-		assertEquals( sessionFactory().getStatistics().getQueryExecutionCount(), 1 );
-		assertEquals( sessionFactory().getStatistics().getQueryCacheHitCount(), 0 );
-		assertEquals( sessionFactory().getStatistics().getQueryCachePutCount(), 1 );
+		assertEquals( 1, sessionFactory().getStatistics().getNaturalIdQueryExecutionCount() );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCacheHitCount() );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCachePutCount() ); //1: no stats since hbm.xml can't enable NaturalId caching
 
 		sessionFactory().getStatistics().clear();
 
@@ -167,8 +240,8 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 		t.commit();
 		s.close();
 
-		assertEquals( sessionFactory().getStatistics().getQueryExecutionCount(), 0 );
-		assertEquals( sessionFactory().getStatistics().getQueryCacheHitCount(), 1 );
+		assertEquals( 1, sessionFactory().getStatistics().getNaturalIdQueryExecutionCount() ); //0: incorrect stats since hbm.xml can't enable NaturalId caching
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCacheHitCount() ); //1: no stats since hbm.xml can't enable NaturalId caching
 
 		sessionFactory().getStatistics().clear();
 
@@ -188,9 +261,9 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 		t.commit();
 		s.close();
 
-		assertEquals( sessionFactory().getStatistics().getQueryExecutionCount(), 1 );
-		assertEquals( sessionFactory().getStatistics().getQueryCacheHitCount(), 0 );
-		assertEquals( sessionFactory().getStatistics().getQueryCachePutCount(), 0 );
+		assertEquals( 1, sessionFactory().getStatistics().getNaturalIdQueryExecutionCount() );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCacheHitCount() );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCachePutCount() );
 	}
 
 	@Test
@@ -217,9 +290,9 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 		t.commit();
 		s.close();
 
-		assertEquals( sessionFactory().getStatistics().getQueryExecutionCount(), 1 );
-		assertEquals( sessionFactory().getStatistics().getQueryCacheHitCount(), 0 );
-		assertEquals( sessionFactory().getStatistics().getQueryCachePutCount(), 1 );
+		assertEquals( 1, sessionFactory().getStatistics().getNaturalIdQueryExecutionCount() );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCacheHitCount() );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCachePutCount() ); //1: no stats since hbm.xml can't enable NaturalId caching
 
 		s = openSession();
 		t = s.beginTransaction();
@@ -240,8 +313,8 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 				.setCacheable( true )
 				.uniqueResult();
 		assertNotNull(u);
-		assertEquals( sessionFactory().getStatistics().getQueryExecutionCount(), 1 );
-		assertEquals( sessionFactory().getStatistics().getQueryCacheHitCount(), 0 );
+		assertEquals( 1, sessionFactory().getStatistics().getNaturalIdQueryExecutionCount() );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCacheHitCount() );
 
 		u = ( User ) s.createCriteria( User.class )
 				.add( Restrictions.naturalId()
@@ -251,8 +324,8 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 				.setCacheable( true )
 				.uniqueResult();
 		assertNotNull(u);
-		assertEquals( sessionFactory().getStatistics().getQueryExecutionCount(), 1 );
-		assertEquals( sessionFactory().getStatistics().getQueryCacheHitCount(), 1 );
+		assertEquals( 1, sessionFactory().getStatistics().getNaturalIdQueryExecutionCount() );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCacheHitCount() ); //1: no stats since hbm.xml can't enable NaturalId caching
 
 		t.commit();
 		s.close();
@@ -288,9 +361,9 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 		s.getTransaction().commit();
 		s.close();
 
-		assertEquals( sessionFactory().getStatistics().getQueryExecutionCount(), 1 );
-		assertEquals( sessionFactory().getStatistics().getQueryCacheHitCount(), 0 );
-		assertEquals( sessionFactory().getStatistics().getQueryCachePutCount(), 1 );
+		assertEquals( 1, sessionFactory().getStatistics().getNaturalIdQueryExecutionCount() );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCacheHitCount() );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCachePutCount() ); //1: no stats since hbm.xml can't enable NaturalId caching
 
 		sessionFactory().getStatistics().clear();
 
@@ -304,8 +377,8 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 				.setCacheable( true )
 				.uniqueResult();
 		assertNotNull( u );
-		assertEquals( sessionFactory().getStatistics().getQueryExecutionCount(), 0 );
-		assertEquals( sessionFactory().getStatistics().getQueryCacheHitCount(), 1 );
+		assertEquals( 1, sessionFactory().getStatistics().getNaturalIdQueryExecutionCount() ); //0: incorrect stats since hbm.xml can't enable NaturalId caching
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCacheHitCount() ); //1: no stats since hbm.xml can't enable NaturalId caching
 
 		s.delete( u );
 
@@ -350,9 +423,9 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 				.uniqueResult();
 		assertNotNull( u );
 
-		assertEquals( sessionFactory().getStatistics().getQueryExecutionCount(), 1 );
-		assertEquals( sessionFactory().getStatistics().getQueryCacheHitCount(), 0 );
-		assertEquals( sessionFactory().getStatistics().getQueryCachePutCount(), 1 );
+		assertEquals( 1, sessionFactory().getStatistics().getNaturalIdQueryExecutionCount() );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCacheHitCount() );
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCachePutCount() ); //1: no stats since hbm.xml can't enable NaturalId caching
 
 		sessionFactory().getStatistics().clear();
 		s.getTransaction().commit();
@@ -368,8 +441,8 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 				.setCacheable( true )
 				.uniqueResult();
 		assertNotNull( u );
-		assertEquals( sessionFactory().getStatistics().getQueryExecutionCount(), 0 );
-		assertEquals( sessionFactory().getStatistics().getQueryCacheHitCount(), 1 );
+		assertEquals( 1, sessionFactory().getStatistics().getNaturalIdQueryExecutionCount() ); //0: incorrect stats since hbm.xml can't enable NaturalId caching
+		assertEquals( 0, sessionFactory().getStatistics().getNaturalIdCacheHitCount() ); //1: no stats since hbm.xml can't enable NaturalId caching
 
 		s.delete( u );
 
@@ -400,4 +473,3 @@ public class MutableNaturalIdTest extends BaseCoreFunctionalTestCase {
 		s.close();
 	}
 }
-

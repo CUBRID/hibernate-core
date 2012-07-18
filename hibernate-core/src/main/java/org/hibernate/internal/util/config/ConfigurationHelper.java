@@ -28,6 +28,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.StringTokenizer;
+
 import org.hibernate.internal.util.StringHelper;
 import org.hibernate.internal.util.collections.ArrayHelper;
 
@@ -333,7 +334,7 @@ public final class ConfigurationHelper {
 		if ( property.indexOf( PLACEHOLDER_START ) < 0 ) {
 			return property;
 		}
-		StringBuffer buff = new StringBuffer();
+		StringBuilder buff = new StringBuilder();
 		char[] chars = property.toCharArray();
 		for ( int pos = 0; pos < chars.length; pos++ ) {
 			if ( chars[pos] == '$' ) {

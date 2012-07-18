@@ -29,14 +29,15 @@ import javax.persistence.EntityManager;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Root;
-import junit.framework.AssertionFailedError;
-import org.hibernate.ejb.metamodel.AbstractMetamodelSpecificTest;
-import org.hibernate.ejb.metamodel.Product;
-import org.hibernate.ejb.metamodel.Product_;
 
+import junit.framework.AssertionFailedError;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import org.hibernate.ejb.metamodel.AbstractMetamodelSpecificTest;
+import org.hibernate.ejb.metamodel.Product;
+import org.hibernate.ejb.metamodel.Product_;
 
 /**
  * @author Steve Ebersole
@@ -57,7 +58,7 @@ public class AggregationResultTest extends AbstractMetamodelSpecificTest {
 		product.setPartNumber( ( (long) Integer.MAX_VALUE ) + 1 );
 		product.setRating( 1.999f );
 		product.setSomeBigInteger( BigInteger.valueOf( 987654321 ) );
-		product.setSomeBigDecimal( BigDecimal.valueOf( 987654.321 ) );
+		product.setSomeBigDecimal( BigDecimal.valueOf( 987654.32 ) );
 		em.persist( product );
 		em.getTransaction().commit();
 		em.close();

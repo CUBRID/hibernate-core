@@ -23,19 +23,20 @@
  */
 package org.hibernate.envers.test.integration.query;
 
-import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.query.AuditEntity;
-import org.hibernate.envers.test.AbstractEntityTest;
-import org.hibernate.envers.test.Priority;
-import org.hibernate.envers.test.entities.IntTestEntity;
+import javax.persistence.EntityManager;
+
 import org.junit.Test;
 
-import javax.persistence.EntityManager;
+import org.hibernate.ejb.Ejb3Configuration;
+import org.hibernate.envers.query.AuditEntity;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
+import org.hibernate.envers.test.Priority;
+import org.hibernate.envers.test.entities.IntTestEntity;
 /**
  * @author Adam Warski (adam at warski dot org)
  */
 @SuppressWarnings({"unchecked"})
-public class AggregateQuery extends AbstractEntityTest {
+public class AggregateQuery extends BaseEnversJPAFunctionalTestCase {
     public void configure(Ejb3Configuration cfg) {
         cfg.addAnnotatedClass(IntTestEntity.class);
     }

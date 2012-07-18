@@ -23,69 +23,36 @@
  */
 package org.hibernate.test.flush;
 
+import org.junit.Test;
+
+import org.hibernate.Hibernate;
 import org.hibernate.Session;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
-import org.hibernate.event.spi.EventType;
 import org.hibernate.event.service.spi.EventListenerRegistry;
-import org.hibernate.integrator.spi.IntegratorService;
-import org.hibernate.service.internal.BasicServiceRegistryImpl;
-import org.hibernate.service.spi.SessionFactoryServiceRegistry;
+import org.hibernate.event.spi.EventType;
+import org.hibernate.event.spi.PreUpdateEvent;
+import org.hibernate.event.spi.PreUpdateEventListener;
 import org.hibernate.integrator.spi.Integrator;
 import org.hibernate.metamodel.source.MetadataImplementor;
-import org.junit.Test;
-
-import org.hibernate.testing.FailureExpected;
+import org.hibernate.service.BootstrapServiceRegistryBuilder;
+import org.hibernate.service.spi.SessionFactoryServiceRegistry;
 import org.hibernate.testing.TestForIssue;
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Steve Ebersole
  */
 @TestForIssue( jiraKey = "HHH-2763" )
 public class TestCollectionInitializingDuringFlush extends BaseCoreFunctionalTestCase {
-	@Override
-	protected Class<?>[] getAnnotatedClasses() {
-		return new Class<?>[] { Author.class, Book.class, Publisher.class };
-	}
-
-	@Override
-	protected void applyServices(BasicServiceRegistryImpl serviceRegistry) {
-		super.applyServices( serviceRegistry );
-		serviceRegistry.getService( IntegratorService.class ).addIntegrator(
-				new Integrator() {
-
-					@Override
-					public void integrate(
-							Configuration configuration,
-							SessionFactoryImplementor sessionFactory,
-							SessionFactoryServiceRegistry serviceRegistry) {
-                        integrate(serviceRegistry);
-					}
-
-					@Override
-					public void integrate( MetadataImplementor metadata,
-					                       SessionFactoryImplementor sessionFactory,
-					                       SessionFactoryServiceRegistry serviceRegistry ) {
-					    integrate(serviceRegistry);
-					}
-
-					private void integrate( SessionFactoryServiceRegistry serviceRegistry ) {
-                        serviceRegistry.getService(EventListenerRegistry.class).getEventListenerGroup(EventType.PRE_UPDATE)
-                                       .appendListener(new InitializingPreUpdateEventListener());
-					}
-
-					@Override
-					public void disintegrate(
-							SessionFactoryImplementor sessionFactory, SessionFactoryServiceRegistry serviceRegistry) {
-					}
-				}
-		);
-	}
-
 	@Test
-	@FailureExpected( jiraKey = "HHH-2763" )
 	public void testInitializationDuringFlush() {
+		assertFalse( InitializingPreUpdateEventListener.INSTANCE.executed );
+		assertFalse( InitializingPreUpdateEventListener.INSTANCE.foundAny );
+
 		Session s = openSession();
 		s.beginTransaction();
 		Publisher publisher = new Publisher( "acme" );
@@ -110,5 +77,76 @@ public class TestCollectionInitializingDuringFlush extends BaseCoreFunctionalTes
 		s.delete( author );
 		s.getTransaction().commit();
 		s.clear();
+
+		assertTrue( InitializingPreUpdateEventListener.INSTANCE.executed );
+		assertTrue( InitializingPreUpdateEventListener.INSTANCE.foundAny );
+	}
+
+	@Override
+	protected Class<?>[] getAnnotatedClasses() {
+		return new Class<?>[] { Author.class, Book.class, Publisher.class };
+	}
+
+	@Override
+	protected void prepareBootstrapRegistryBuilder(BootstrapServiceRegistryBuilder builder) {
+		super.prepareBootstrapRegistryBuilder( builder );
+		builder.with(
+				new Integrator() {
+
+					@Override
+					public void integrate(
+							Configuration configuration,
+							SessionFactoryImplementor sessionFactory,
+							SessionFactoryServiceRegistry serviceRegistry) {
+						integrate( serviceRegistry );
+					}
+
+					@Override
+					public void integrate(
+							MetadataImplementor metadata,
+							SessionFactoryImplementor sessionFactory,
+							SessionFactoryServiceRegistry serviceRegistry) {
+						integrate( serviceRegistry );
+					}
+
+					private void integrate(SessionFactoryServiceRegistry serviceRegistry) {
+						serviceRegistry.getService( EventListenerRegistry.class )
+								.getEventListenerGroup( EventType.PRE_UPDATE )
+								.appendListener( InitializingPreUpdateEventListener.INSTANCE );
+					}
+
+					@Override
+					public void disintegrate(
+							SessionFactoryImplementor sessionFactory, SessionFactoryServiceRegistry serviceRegistry) {
+					}
+				}
+		);
+	}
+
+	public static class InitializingPreUpdateEventListener implements PreUpdateEventListener {
+		public static final InitializingPreUpdateEventListener INSTANCE = new InitializingPreUpdateEventListener();
+
+		private boolean executed = false;
+		private boolean foundAny = false;
+
+		@Override
+		public boolean onPreUpdate(PreUpdateEvent event) {
+			executed = true;
+
+			final Object[] oldValues = event.getOldState();
+			final String[] properties = event.getPersister().getPropertyNames();
+
+			// Iterate through all fields of the updated object
+			for ( int i = 0; i < properties.length; i++ ) {
+				if ( oldValues != null && oldValues[i] != null ) {
+					if ( ! Hibernate.isInitialized( oldValues[i] ) ) {
+						// force any proxies and/or collections to initialize to illustrate HHH-2763
+						foundAny = true;
+						Hibernate.initialize( oldValues );
+					}
+				}
+			}
+			return true;
+		}
 	}
 }

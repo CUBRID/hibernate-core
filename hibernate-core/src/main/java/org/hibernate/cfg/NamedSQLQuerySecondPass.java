@@ -26,16 +26,16 @@ package org.hibernate.cfg;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
+
 import org.dom4j.Attribute;
 import org.dom4j.Element;
+import org.jboss.logging.Logger;
 
-import org.hibernate.engine.spi.NamedSQLQueryDefinition;
-import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.MappingException;
 import org.hibernate.engine.ResultSetMappingDefinition;
+import org.hibernate.engine.spi.NamedSQLQueryDefinition;
+import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.internal.util.StringHelper;
-
-import org.jboss.logging.Logger;
 
 /**
  * @author Emmanuel Bernard
@@ -62,9 +62,9 @@ public class NamedSQLQuerySecondPass extends ResultSetMappingBinder implements Q
 		boolean cacheable = "true".equals( queryElem.attributeValue( "cacheable" ) );
 		String region = queryElem.attributeValue( "cache-region" );
 		Attribute tAtt = queryElem.attribute( "timeout" );
-		Integer timeout = tAtt == null ? null : new Integer( tAtt.getValue() );
+		Integer timeout = tAtt == null ? null : Integer.valueOf( tAtt.getValue() );
 		Attribute fsAtt = queryElem.attribute( "fetch-size" );
-		Integer fetchSize = fsAtt == null ? null : new Integer( fsAtt.getValue() );
+		Integer fetchSize = fsAtt == null ? null : Integer.valueOf( fsAtt.getValue() );
 		Attribute roAttr = queryElem.attribute( "read-only" );
 		boolean readOnly = roAttr != null && "true".equals( roAttr.getValue() );
 		Attribute cacheModeAtt = queryElem.attribute( "cache-mode" );
@@ -121,7 +121,9 @@ public class NamedSQLQuerySecondPass extends ResultSetMappingBinder implements Q
 			);
 		}
 
-        LOG.debugf("Named SQL query: %s -> %s", namedQuery.getName(), namedQuery.getQueryString());
+		if ( LOG.isDebugEnabled() ) {
+			LOG.debugf( "Named SQL query: %s -> %s", namedQuery.getName(), namedQuery.getQueryString() );
+		}
 		mappings.addSQLQuery( queryName, namedQuery );
 	}
 }

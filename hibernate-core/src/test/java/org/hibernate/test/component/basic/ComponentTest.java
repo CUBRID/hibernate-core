@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import org.junit.Test;
+
 import org.hibernate.Hibernate;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
@@ -40,18 +42,14 @@ import org.hibernate.dialect.function.SQLFunction;
 import org.hibernate.mapping.Component;
 import org.hibernate.mapping.Formula;
 import org.hibernate.mapping.PersistentClass;
-import org.hibernate.type.StandardBasicTypes;
-
-import org.junit.Test;
-
 import org.hibernate.testing.FailureExpected;
 import org.hibernate.testing.RequiresDialect;
 import org.hibernate.testing.TestForIssue;
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
+import org.hibernate.type.StandardBasicTypes;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
 
 /**
  * @author Gavin King
@@ -249,7 +247,11 @@ public class ComponentTest extends BaseCoreFunctionalTestCase {
 		s.flush();
 		
 		// Test value conversion during insert
-		Double heightViaSql = (Double)s.createSQLQuery("select height_centimeters from t_user where t_user.username='steve'").uniqueResult();
+		// Value returned by Oracle native query is a Types.NUMERIC, which is mapped to a BigDecimalType;
+		// Cast returned value to Number then call Number.doubleValue() so it works on all dialects.
+		Double heightViaSql =
+				( (Number)s.createSQLQuery("select height_centimeters from T_USER where T_USER.username='steve'").uniqueResult())
+						.doubleValue();
 		assertEquals(HEIGHT_CENTIMETERS, heightViaSql, 0.01d);
 
 		// Test projection
@@ -272,7 +274,9 @@ public class ComponentTest extends BaseCoreFunctionalTestCase {
 		// Test update
 		u.getPerson().setHeightInches(1);
 		s.flush();
-		heightViaSql = (Double)s.createSQLQuery("select height_centimeters from t_user where t_user.username='steve'").uniqueResult();
+		heightViaSql =
+				( (Number)s.createSQLQuery("select height_centimeters from T_USER where T_USER.username='steve'").uniqueResult() )
+						.doubleValue();
 		assertEquals(2.54d, heightViaSql, 0.01d);
 		s.delete(u);
 		t.commit();

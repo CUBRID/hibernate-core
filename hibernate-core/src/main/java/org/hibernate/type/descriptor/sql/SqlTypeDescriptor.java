@@ -38,14 +38,14 @@ public interface SqlTypeDescriptor extends Serializable {
 	/**
 	 * Return the {@linkplain java.sql.Types JDBC type-code} for the column mapped by this type.
 	 *
-	 * @return The JDBC type-code
+	 * @return typeCode The JDBC type-code
 	 */
 	public int getSqlType();
 
 	/**
 	 * Is this descriptor available for remapping?
 	 *
-	 * @return
+	 * @return {@code true} indicates this descriptor can be remapped; otherwise, {@code false}
 	 *
 	 * @see org.hibernate.type.descriptor.WrapperOptions#remapSqlTypeDescriptor
 	 * @see org.hibernate.dialect.Dialect#remapSqlTypeDescriptor

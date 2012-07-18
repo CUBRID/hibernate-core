@@ -24,19 +24,20 @@
 
 package org.hibernate.envers.test.integration.inheritance.joined.relation.unidirectional;
 
-import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.test.AbstractEntityTest;
-import org.hibernate.envers.test.Priority;
-import org.junit.Test;
-
-import javax.persistence.EntityManager;
 import java.util.Arrays;
 import java.util.Set;
+import javax.persistence.EntityManager;
+
+import org.junit.Test;
+
+import org.hibernate.ejb.Ejb3Configuration;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
+import org.hibernate.envers.test.Priority;
 
 /**
  * @author Adam Warski (adam at warski dot org)
  */
-public class UnidirectionalDoubleAbstract extends AbstractEntityTest {
+public class UnidirectionalDoubleAbstract extends BaseEnversJPAFunctionalTestCase {
 	private Long cce1_id;
 	private Integer cse1_id;
 

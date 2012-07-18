@@ -23,21 +23,22 @@
  */
 package org.hibernate.envers.test.integration.collection;
 
+import java.util.Arrays;
+import java.util.Collections;
+import javax.persistence.EntityManager;
+
+import org.junit.Test;
+
 import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.test.AbstractEntityTest;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
 import org.hibernate.envers.test.Priority;
 import org.hibernate.envers.test.entities.collection.StringListEntity;
 import org.hibernate.envers.test.tools.TestTools;
-import org.junit.Test;
-
-import javax.persistence.EntityManager;
-import java.util.Arrays;
-import java.util.Collections;
 
 /**
  * @author Adam Warski (adam at warski dot org)
  */
-public class StringList extends AbstractEntityTest {
+public class StringList extends BaseEnversJPAFunctionalTestCase {
     private Integer sle1_id;
     private Integer sle2_id;
 

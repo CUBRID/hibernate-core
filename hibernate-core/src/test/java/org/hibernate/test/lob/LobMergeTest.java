@@ -23,11 +23,10 @@
  */
 package org.hibernate.test.lob;
 
-import org.hibernate.Session;
-import org.hibernate.internal.util.collections.ArrayHelper;
-
 import org.junit.Test;
 
+import org.hibernate.Session;
+import org.hibernate.internal.util.collections.ArrayHelper;
 import org.hibernate.testing.DialectChecks;
 import org.hibernate.testing.RequiresDialectFeature;
 import org.hibernate.testing.TestForIssue;
@@ -40,7 +39,7 @@ import static org.junit.Assert.assertTrue;
  * @author Steve Ebersole
  */
 @TestForIssue( jiraKey = "HHH-2680" )
-@RequiresDialectFeature( DialectChecks.SupportsExpectedLobUsagePattern.class )
+@RequiresDialectFeature( {DialectChecks.SupportsExpectedLobUsagePattern.class, DialectChecks.SupportsLobValueChangePropogation.class} ) // Skip for Sybase. HHH-6807
 public class LobMergeTest extends BaseCoreFunctionalTestCase {
 	private static final int LOB_SIZE = 10000;
 

@@ -20,18 +20,23 @@
  */
 package org.hibernate.ejb.test.ejb3configuration;
 
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.PersistenceException;
 import java.io.Serializable;
 import java.util.Comparator;
 import java.util.Map;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.PersistenceException;
+
+import org.junit.Assert;
+import org.junit.Test;
 
 import org.hibernate.EntityMode;
 import org.hibernate.HibernateException;
 import org.hibernate.LockMode;
 import org.hibernate.LockOptions;
 import org.hibernate.MappingException;
+import org.hibernate.bytecode.spi.EntityInstrumentationMetadata;
 import org.hibernate.cache.spi.access.EntityRegionAccessStrategy;
+import org.hibernate.cache.spi.access.NaturalIdRegionAccessStrategy;
 import org.hibernate.cache.spi.entry.CacheEntryStructure;
 import org.hibernate.ejb.Ejb3Configuration;
 import org.hibernate.engine.spi.CascadeStyle;
@@ -40,6 +45,7 @@ import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.engine.spi.SessionImplementor;
 import org.hibernate.engine.spi.ValueInclusion;
 import org.hibernate.id.IdentifierGenerator;
+import org.hibernate.internal.FilterAliasGenerator;
 import org.hibernate.mapping.Collection;
 import org.hibernate.mapping.PersistentClass;
 import org.hibernate.metadata.ClassMetadata;
@@ -51,13 +57,15 @@ import org.hibernate.persister.internal.PersisterClassResolverInitiator;
 import org.hibernate.persister.spi.PersisterClassResolver;
 import org.hibernate.tuple.entity.EntityMetamodel;
 import org.hibernate.tuple.entity.EntityTuplizer;
+import org.hibernate.tuple.entity.NonPojoInstrumentationMetadata;
 import org.hibernate.type.Type;
 import org.hibernate.type.VersionType;
 
 /**
  * @author Emmanuel Bernard <emmanuel@hibernate.org>
  */
-public class PersisterClassProviderTest extends junit.framework.TestCase {
+public class PersisterClassProviderTest {
+    @Test
 	public void testPersisterClassProvider() {
 		Ejb3Configuration conf = new Ejb3Configuration();
 		conf.getProperties().put( PersisterClassResolverInitiator.IMPL_NAME, GoofyPersisterClassProvider.class );
@@ -67,9 +75,9 @@ public class PersisterClassProviderTest extends junit.framework.TestCase {
 			entityManagerFactory.close();
 		}
 		catch ( PersistenceException e ) {
-			assertNotNull( e.getCause() );
-			assertNotNull( e.getCause().getCause() );
-			assertEquals( GoofyException.class, e.getCause().getCause().getClass() );
+            Assert.assertNotNull( e.getCause() );
+			Assert.assertNotNull( e.getCause().getCause() );
+			Assert.assertEquals( GoofyException.class, e.getCause().getCause().getClass() );
 
 		}
 	}
@@ -102,6 +110,7 @@ public class PersisterClassProviderTest extends junit.framework.TestCase {
 		public GoofyProvider(
 				org.hibernate.mapping.PersistentClass persistentClass,
 				org.hibernate.cache.spi.access.EntityRegionAccessStrategy strategy,
+				NaturalIdRegionAccessStrategy naturalIdRegionAccessStrategy,
 				SessionFactoryImplementor sf,
 				Mapping mapping) {
 			throw new GoofyException();
@@ -115,6 +124,11 @@ public class PersisterClassProviderTest extends junit.framework.TestCase {
 		@Override
 		public EntityTuplizer getEntityTuplizer() {
 			return null;
+		}
+
+		@Override
+		public EntityInstrumentationMetadata getInstrumentationMetadata() {
+			return new NonPojoInstrumentationMetadata( getEntityName() );
 		}
 
 		@Override
@@ -246,8 +260,8 @@ public class PersisterClassProviderTest extends junit.framework.TestCase {
 		public boolean hasNaturalIdentifier() {
 			return false;
 		}
-
-		@Override
+		
+        @Override
 		public int[] getNaturalIdentifierProperties() {
 			return new int[0];
 		}
@@ -258,6 +272,22 @@ public class PersisterClassProviderTest extends junit.framework.TestCase {
 		}
 
 		@Override
+		public Serializable loadEntityIdByNaturalId(Object[] naturalIdValues, LockOptions lockOptions,
+				SessionImplementor session) {
+			return null;
+		}
+		
+		@Override
+        public boolean hasNaturalIdCache() {
+            return false;
+        }
+
+        @Override
+        public NaturalIdRegionAccessStrategy getNaturalIdCacheAccessStrategy() {
+            return null;
+        }
+
+        @Override
 		public IdentifierGenerator getIdentifierGenerator() {
 			return null;
 		}
@@ -551,6 +581,11 @@ public class PersisterClassProviderTest extends junit.framework.TestCase {
 
 		@Override
 		public EntityPersister getSubclassEntityPersister(Object instance, SessionFactoryImplementor factory) {
+			return null;
+		}
+
+		@Override
+		public FilterAliasGenerator getFilterAliasGenerator(String rootAlias) {
 			return null;
 		}
 	}

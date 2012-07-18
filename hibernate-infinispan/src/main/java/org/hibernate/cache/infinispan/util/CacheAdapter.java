@@ -21,13 +21,17 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 package org.hibernate.cache.infinispan.util;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.hibernate.cache.CacheException;
+import java.util.concurrent.Callable;
+
 import org.infinispan.Cache;
 import org.infinispan.config.Configuration;
 import org.infinispan.util.concurrent.TimeoutException;
+
+import org.hibernate.cache.CacheException;
 
 /**
  * Infinispan cache abstraction.
@@ -204,4 +208,21 @@ public interface CacheAdapter {
     * @return Configuration instance associated with this cache.
     */
    Configuration getConfiguration();
+
+   /**
+    * TODO
+    */
+   void broadcastEvictAll();
+
+   /**
+    * TODO
+    *
+    * @param c
+    * @param <T>
+    * @return
+    */
+   <T> T withinTx(Callable<T> c) throws Exception;
+
+   Cache getCache();
+
 }

@@ -62,15 +62,15 @@ public interface LogicalConnection extends Serializable {
 	public Connection getConnection();
 
 	/**
-	 * Retrieves the shareable connection proxy (see {@link org.hibernate.engine.jdbc.internal.proxy} for details).
+	 * Retrieves the shareable connection proxy.
 	 *
 	 * @return The shareable connection proxy.
 	 */
 	public Connection getShareableConnectionProxy();
 
 	/**
-	 * Retrieves a distinct connection proxy (see {@link org.hibernate.engine.jdbc.internal.proxy} for details).  It
-	 * is distinct in that it is not shared with others unless the caller explicitly shares it.
+	 * Retrieves a distinct connection proxy.  It is distinct in that it is not shared with others unless the caller
+	 * explicitly shares it.
 	 *
 	 * @return The distinct connection proxy.
 	 */
@@ -80,11 +80,14 @@ public interface LogicalConnection extends Serializable {
 	 * Release the underlying connection and clean up any other resources associated
 	 * with this logical connection.
 	 * <p/>
-	 * This leaves the logical connection in a "no longer useable" state.
+	 * This leaves the logical connection in a "no longer usable" state.
 	 *
-	 * @return The physical connection which was being used.
+	 * @return The application-supplied connection, or {@code null} if Hibernate was managing connection.
 	 */
 	public Connection close();
 
+	/**
+	 * Signals the end of current transaction in which this logical connection operated.
+	 */
 	public void afterTransaction();
 }

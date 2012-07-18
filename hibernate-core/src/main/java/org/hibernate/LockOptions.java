@@ -1,11 +1,10 @@
-// $Id:$
 /*
  * Hibernate, Relational Persistence for Idiomatic Java
  *
- * Copyright (c) 2009 by Red Hat Inc and/or its affiliates or by
- * third-party contributors as indicated by either @author tags or express
- * copyright attribution statements applied by the authors.  All
- * third-party contributions are distributed under license by Red Hat Inc.
+ * Copyright (c) 2009-2012, Red Hat Inc. or third-party contributors as
+ * indicated by the @author tags or express copyright attribution
+ * statements applied by the authors.  All third-party contributions are
+ * distributed under license by Red Hat Inc.
  *
  * This copyrighted material is made available to anyone wishing to use, modify,
  * copy, or redistribute it subject to the terms and conditions of the GNU
@@ -23,11 +22,12 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate;
+
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-
 
 /**
  * Contains locking details (LockMode, Timeout and Scope).
@@ -39,15 +39,33 @@ public class LockOptions implements Serializable {
 	 * NONE represents LockMode.NONE (timeout + scope do not apply)
 	 */
 	public static final LockOptions NONE = new LockOptions(LockMode.NONE);
+
 	/**
 	 * READ represents LockMode.READ (timeout + scope do not apply)
 	 */
 	public static final LockOptions READ = new LockOptions(LockMode.READ);
+
 	/**
 	 * UPGRADE represents LockMode.UPGRADE (will wait forever for lock and
 	 * scope of false meaning only entity is locked)
 	 */
 	public static final LockOptions UPGRADE = new LockOptions(LockMode.UPGRADE);
+
+	/**
+	 * Indicates that the database should not wait at all to acquire the pessimistic lock.
+	 * @see #getTimeOut
+	 */
+	public static final int NO_WAIT = 0;
+
+	/**
+	 * Indicates that there is no timeout for the acquisition.
+	 * @see #getTimeOut
+	 */
+	public static final int WAIT_FOREVER = -1;
+
+	private LockMode lockMode = LockMode.NONE;
+	private int timeout = WAIT_FOREVER;
+	private Map aliasSpecificLockModes = null; //initialize lazily as LockOptions is frequently created without needing this
 
 	public LockOptions() {
 	}
@@ -56,7 +74,6 @@ public class LockOptions implements Serializable {
 		this.lockMode = lockMode;
 	}
 
-	private LockMode lockMode = LockMode.NONE;
 
 	/**
 	 * Retrieve the overall lock mode in effect for this set of options.
@@ -83,7 +100,6 @@ public class LockOptions implements Serializable {
 		return this;
 	}
 
-	private Map aliasSpecificLockModes = new HashMap();
 
 	/**
 	 * Specify the {@link LockMode} to be used for a specific query alias.
@@ -97,6 +113,9 @@ public class LockOptions implements Serializable {
 	 * @see Criteria#setLockMode(String, LockMode)
 	 */
 	public LockOptions setAliasSpecificLockMode(String alias, LockMode lockMode) {
+		if ( aliasSpecificLockModes == null ) {
+			aliasSpecificLockModes = new HashMap();
+		}
 		aliasSpecificLockModes.put( alias, lockMode );
 		return this;
 	}
@@ -113,6 +132,9 @@ public class LockOptions implements Serializable {
 	 * @return The explicit lock mode for that alias.
 	 */
 	public LockMode getAliasSpecificLockMode(String alias) {
+		if ( aliasSpecificLockModes == null ) {
+			return null;
+		}
 		return (LockMode) aliasSpecificLockModes.get( alias );
 	}
 
@@ -143,6 +165,9 @@ public class LockOptions implements Serializable {
 	 * @return the number of explicitly defined alias lock modes.
 	 */
 	public int getAliasLockCount() {
+		if ( aliasSpecificLockModes == null ) {
+			return 0;
+		}
 		return aliasSpecificLockModes.size();
 	}
 
@@ -152,21 +177,11 @@ public class LockOptions implements Serializable {
 	 * @return Iterator for accessing the Map.Entry's
 	 */
 	public Iterator getAliasLockIterator() {
+		if ( aliasSpecificLockModes == null ) {
+			return Collections.emptyList().iterator();
+		}
 		return aliasSpecificLockModes.entrySet().iterator();
 	}
-
-	/**
-	 * Indicates that the database should not wait at all to acquire the pessimistic lock.
-	 * @see #getTimeOut
-	 */
-	public static final int NO_WAIT = 0;
-	/**
-	 * Indicates that there is no timeout for the acquisition.
-	 * @see #getTimeOut
-	 */
-	public static final int WAIT_FOREVER = -1;
-
-	private int timeout = WAIT_FOREVER;
 
 	/**
 	 * Retrieve the current timeout setting.
@@ -234,7 +249,9 @@ public class LockOptions implements Serializable {
 		dest.setLockMode(from.getLockMode());
 		dest.setScope(from.getScope());
 		dest.setTimeOut(from.getTimeOut());
-		dest.aliasSpecificLockModes = new HashMap(from.aliasSpecificLockModes );
+		if ( from.aliasSpecificLockModes != null ) {
+			dest.aliasSpecificLockModes = new HashMap( from.aliasSpecificLockModes );
+		}
 		return dest;
 	}
 }

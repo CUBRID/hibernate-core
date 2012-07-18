@@ -82,13 +82,19 @@ abstract public class DialectChecks {
 
 	public static class SupportsUnboundedLobLocatorMaterializationCheck implements DialectCheck {
 		public boolean isMatch(Dialect dialect) {
-			return dialect.supportsUnboundedLobLocatorMaterialization();
+			return dialect.supportsExpectedLobUsagePattern() && dialect.supportsUnboundedLobLocatorMaterialization();
 		}
 	}
 
 	public static class SupportSubqueryAsLeftHandSideInPredicate implements DialectCheck {
 		public boolean isMatch(Dialect dialect) {
 			return dialect.supportsSubselectAsInPredicateLHS();
+		}
+	}
+
+	public static class SupportNotNullUnique implements DialectCheck {
+		public boolean isMatch(Dialect dialect) {
+			return dialect.supportsNotNullUnique();
 		}
 	}
 
@@ -148,7 +154,19 @@ abstract public class DialectChecks {
 
 	public static class SupportsExistsInSelectCheck implements DialectCheck {
 		public boolean isMatch(Dialect dialect) {
-			return ! dialect.supportsExistsInSelect();
+			return dialect.supportsExistsInSelect();
+		}
+	}
+	
+	public static class SupportsLobValueChangePropogation implements DialectCheck {
+		public boolean isMatch(Dialect dialect) {
+			return dialect.supportsLobValueChangePropogation();
+		}
+	}
+	
+	public static class SupportsLockTimeouts implements DialectCheck {
+		public boolean isMatch(Dialect dialect) {
+			return dialect.supportsLockTimeouts();
 		}
 	}
 }

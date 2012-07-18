@@ -22,13 +22,16 @@
  * Boston, MA  02110-1301  USA
  */
 package org.hibernate.test.cache.infinispan.util;
+
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
+
 import org.hibernate.cache.infinispan.InfinispanRegionFactory;
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.cfg.Configuration;
@@ -80,9 +83,7 @@ public class CacheTestUtil {
       String factoryType = cfg.getProperty(Environment.CACHE_REGION_FACTORY);
       Class factoryClass = Thread.currentThread().getContextClassLoader().loadClass(factoryType);
       InfinispanRegionFactory regionFactory = (InfinispanRegionFactory) factoryClass.newInstance();
-
       regionFactory.start(settings, properties);
-
       return regionFactory;
    }
 

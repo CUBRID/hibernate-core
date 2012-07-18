@@ -32,13 +32,14 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.hibernate.internal.CoreMessageLogger;
+
+import org.jboss.logging.Logger;
+
 import org.hibernate.engine.jdbc.spi.JdbcResourceRegistry;
 import org.hibernate.engine.jdbc.spi.JdbcServices;
 import org.hibernate.engine.jdbc.spi.LogicalConnectionImplementor;
 import org.hibernate.engine.jdbc.spi.NonDurableConnectionObserver;
-
-import org.jboss.logging.Logger;
+import org.hibernate.internal.CoreMessageLogger;
 
 /**
  * The {@link InvocationHandler} for intercepting messages to {@link java.sql.Connection} proxies.
@@ -47,7 +48,7 @@ import org.jboss.logging.Logger;
  */
 public class ConnectionProxyHandler
 		extends AbstractProxyHandler
-		implements InvocationHandler, NonDurableConnectionObserver {
+		implements NonDurableConnectionObserver {
 
     private static final CoreMessageLogger LOG = Logger.getMessageLogger(CoreMessageLogger.class,
                                                                        ConnectionProxyHandler.class.getName());
@@ -104,9 +105,9 @@ public class ConnectionProxyHandler
 	}
 
 	@Override
-    protected Object continueInvocation(Object proxy, Method method, Object[] args) throws Throwable {
-		String methodName = method.getName();
-        LOG.trace("Handling invocation of connection method [" + methodName + "]");
+	protected Object continueInvocation(Object proxy, Method method, Object[] args) throws Throwable {
+		final String methodName = method.getName();
+		LOG.tracev( "Handling invocation of connection method [{0}]", methodName );
 
 		// other methods allowed while invalid ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 		if ( "close".equals( methodName ) ) {
@@ -202,7 +203,7 @@ public class ConnectionProxyHandler
 	}
 
 	private void invalidateHandle() {
-        LOG.trace("Invalidating connection handle");
+		LOG.trace( "Invalidating connection handle" );
 		logicalConnection = null;
 		invalidate();
 	}
@@ -215,12 +216,12 @@ public class ConnectionProxyHandler
 
 	@Override
 	public void physicalConnectionReleased() {
-        LOG.logicalConnectionReleasingPhysicalConnection();
+		LOG.logicalConnectionReleasingPhysicalConnection();
 	}
 
 	@Override
 	public void logicalConnectionClosed() {
-        LOG.logicalConnectionClosed();
+		LOG.logicalConnectionClosed();
 		invalidateHandle();
 	}
 

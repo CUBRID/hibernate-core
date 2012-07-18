@@ -23,36 +23,34 @@
  */
 package org.hibernate.test.cache.infinispan.collection;
 
-import javax.transaction.TransactionManager;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import javax.transaction.TransactionManager;
 
+import junit.framework.AssertionFailedError;
 import org.infinispan.transaction.tm.BatchModeTransactionManager;
 import org.jboss.logging.Logger;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-import org.hibernate.cache.internal.CacheDataDescriptionImpl;
-import org.hibernate.cache.spi.CacheDataDescription;
-import org.hibernate.cache.spi.access.AccessType;
-import org.hibernate.cache.spi.access.CollectionRegionAccessStrategy;
 import org.hibernate.cache.infinispan.InfinispanRegionFactory;
 import org.hibernate.cache.infinispan.access.PutFromLoadValidator;
 import org.hibernate.cache.infinispan.access.TransactionalAccessDelegate;
 import org.hibernate.cache.infinispan.collection.CollectionRegionImpl;
+import org.hibernate.cache.infinispan.util.CacheHelper;
+import org.hibernate.cache.internal.CacheDataDescriptionImpl;
+import org.hibernate.cache.spi.CacheDataDescription;
+import org.hibernate.cache.spi.access.AccessType;
+import org.hibernate.cache.spi.access.CollectionRegionAccessStrategy;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.internal.util.compare.ComparableComparator;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import junit.framework.AssertionFailedError;
-
 import org.hibernate.test.cache.infinispan.AbstractNonFunctionalTestCase;
 import org.hibernate.test.cache.infinispan.NodeEnvironment;
-import org.hibernate.test.cache.infinispan.functional.cluster.DualNodeJtaTransactionManagerImpl;
 import org.hibernate.test.cache.infinispan.util.CacheTestUtil;
 
 import static org.junit.Assert.assertEquals;
@@ -162,8 +160,8 @@ public abstract class AbstractCollectionRegionAccessStrategyTestCase extends Abs
 	public void testPutFromLoadRemoveDoesNotProduceStaleData() throws Exception {
 		final CountDownLatch pferLatch = new CountDownLatch( 1 );
 		final CountDownLatch removeLatch = new CountDownLatch( 1 );
-		TransactionManager tm = DualNodeJtaTransactionManagerImpl.getInstance( "test1234" );
-		PutFromLoadValidator validator = new PutFromLoadValidator( tm ) {
+      final TransactionManager remoteTm = remoteCollectionRegion.getTransactionManager();
+      PutFromLoadValidator validator = new PutFromLoadValidator(remoteTm) {
 			@Override
 			public boolean acquirePutFromLoadLock(Object key) {
 				boolean acquired = super.acquirePutFromLoadLock( key );
@@ -182,9 +180,10 @@ public abstract class AbstractCollectionRegionAccessStrategyTestCase extends Abs
 				return acquired;
 			}
 		};
-		final TransactionalAccessDelegate delegate = new TransactionalAccessDelegate(
-				(CollectionRegionImpl) localCollectionRegion, validator
-		);
+
+		final TransactionalAccessDelegate delegate =
+            new TransactionalAccessDelegate(localCollectionRegion, validator);
+      final TransactionManager localTm = localCollectionRegion.getTransactionManager();
 
 		Callable<Void> pferCallable = new Callable<Void>() {
 			public Void call() throws Exception {
@@ -196,7 +195,13 @@ public abstract class AbstractCollectionRegionAccessStrategyTestCase extends Abs
 		Callable<Void> removeCallable = new Callable<Void>() {
 			public Void call() throws Exception {
 				removeLatch.await();
-				delegate.remove( "k1" );
+            CacheHelper.withinTx(localTm, new Callable<Void>() {
+               @Override
+               public Void call() throws Exception {
+                  delegate.remove("k1");
+                  return null;
+               }
+            });
 				pferLatch.countDown();
 				return null;
 			}
@@ -355,26 +360,26 @@ public abstract class AbstractCollectionRegionAccessStrategyTestCase extends Abs
 	}
 
 	@Test
-	public void testRemove() {
+	public void testRemove() throws Exception {
 		evictOrRemoveTest( false );
 	}
 
 	@Test
-	public void testRemoveAll() {
+	public void testRemoveAll() throws Exception {
 		evictOrRemoveAllTest( false );
 	}
 
 	@Test
-	public void testEvict() {
+	public void testEvict() throws Exception {
 		evictOrRemoveTest( true );
 	}
 
 	@Test
-	public void testEvictAll() {
+	public void testEvictAll() throws Exception {
 		evictOrRemoveAllTest( true );
 	}
 
-	private void evictOrRemoveTest(boolean evict) {
+	private void evictOrRemoveTest(final boolean evict) throws Exception {
 
 		final String KEY = KEY_BASE + testCount++;
 
@@ -389,19 +394,23 @@ public abstract class AbstractCollectionRegionAccessStrategyTestCase extends Abs
 		// Wait for async propagation
 		sleep( 250 );
 
-		if ( evict ) {
-			localAccessStrategy.evict( KEY );
-		}
-		else {
-			localAccessStrategy.remove( KEY );
-		}
+      CacheHelper.withinTx(localCollectionRegion.getTransactionManager(), new Callable<Void>() {
+         @Override
+         public Void call() throws Exception {
+            if (evict)
+               localAccessStrategy.evict(KEY);
+            else
+               localAccessStrategy.remove(KEY);
+            return null;
+         }
+      });
 
 		assertEquals( null, localAccessStrategy.get( KEY, System.currentTimeMillis() ) );
 
 		assertEquals( null, remoteAccessStrategy.get( KEY, System.currentTimeMillis() ) );
 	}
 
-	private void evictOrRemoveAllTest(boolean evict) {
+	private void evictOrRemoveAllTest(final boolean evict) throws Exception {
 
 		final String KEY = KEY_BASE + testCount++;
 
@@ -420,12 +429,16 @@ public abstract class AbstractCollectionRegionAccessStrategyTestCase extends Abs
 		// Wait for async propagation
 		sleep( 250 );
 
-		if ( evict ) {
-			localAccessStrategy.evictAll();
-		}
-		else {
-			localAccessStrategy.removeAll();
-		}
+      CacheHelper.withinTx(localCollectionRegion.getTransactionManager(), new Callable<Void>() {
+         @Override
+         public Void call() throws Exception {
+            if (evict)
+               localAccessStrategy.evictAll();
+            else
+               localAccessStrategy.removeAll();
+            return null;
+         }
+      });
 
 		// This should re-establish the region root node
 		assertNull( localAccessStrategy.get( KEY, System.currentTimeMillis() ) );

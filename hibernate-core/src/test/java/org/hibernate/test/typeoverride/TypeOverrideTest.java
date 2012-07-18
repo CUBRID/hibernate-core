@@ -23,18 +23,20 @@
  */
 package org.hibernate.test.typeoverride;
 
+import org.junit.Test;
+
 import org.hibernate.Session;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.dialect.Dialect;
+import org.hibernate.dialect.PostgreSQL81Dialect;
 import org.hibernate.dialect.PostgreSQLDialect;
+import org.hibernate.dialect.SybaseASE15Dialect;
+import org.hibernate.testing.SkipForDialect;
+import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 import org.hibernate.type.descriptor.sql.BlobTypeDescriptor;
 import org.hibernate.type.descriptor.sql.IntegerTypeDescriptor;
 import org.hibernate.type.descriptor.sql.SqlTypeDescriptor;
 import org.hibernate.type.descriptor.sql.VarcharTypeDescriptor;
-
-import org.junit.Test;
-
-import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -68,7 +70,7 @@ public class TypeOverrideTest extends BaseCoreFunctionalTestCase {
 					getDialect().remapSqlTypeDescriptor( BlobTypeDescriptor.DEFAULT )
 			);
 		}
-		else if ( PostgreSQLDialect.class.isInstance( getDialect() ) )  {
+		else if ( PostgreSQL81Dialect.class.isInstance( getDialect() ) || PostgreSQLDialect.class.isInstance( getDialect() ) )  {
 			assertSame(
 					BlobTypeDescriptor.BLOB_BINDING,
 					getDialect().remapSqlTypeDescriptor( BlobTypeDescriptor.DEFAULT )
@@ -130,6 +132,7 @@ public class TypeOverrideTest extends BaseCoreFunctionalTestCase {
 	}
 
 	@Test
+    @SkipForDialect( value = SybaseASE15Dialect.class, jiraKey = "HHH-6426")
 	public void testRegisteredFunction() {
 		Session s = openSession();
 		s.getTransaction().begin();

@@ -171,6 +171,35 @@ public interface StatisticsImplementor extends Statistics, Service {
 	 * @param regionName The name of the cache region
 	 */
 	public void secondLevelCacheMiss(String regionName);
+	
+	/**
+	 * Callback indicating a put into natural id cache.
+	 *
+	 * @param regionName The name of the cache region
+	 */
+	public void naturalIdCachePut(String regionName);
+	
+	/**
+	 * Callback indicating a get from natural id cache resulted in a hit.
+	 *
+	 * @param regionName The name of the cache region
+	 */
+	public void naturalIdCacheHit(String regionName);
+	
+	/**
+	 * Callback indicating a get from natural id cache resulted in a miss.
+	 *
+	 * @param regionName The name of the cache region
+	 */
+	public void naturalIdCacheMiss(String regionName);
+
+	/**
+	 * Callback indicating execution of a natural id query
+	 *
+	 * @param regionName The name of the cache region
+	 * @param time execution time
+	 */
+	public void naturalIdQueryExecuted(String regionName, long time);
 
 	/**
 	 * Callback indicating a put into the query cache.
@@ -204,4 +233,20 @@ public interface StatisticsImplementor extends Statistics, Service {
 	 * @param time execution time
 	 */
 	public void queryExecuted(String hql, int rows, long time);
+
+
+	/**
+	 * Callback indicating a hit to the timestamp cache
+	 */
+	public void updateTimestampsCacheHit();
+
+	/**
+	 * Callback indicating a miss to the timestamp cache
+	 */
+	public void updateTimestampsCacheMiss();
+
+	/**
+	 * Callback indicating a put to the timestamp cache
+	 */
+	public void updateTimestampsCachePut();
 }

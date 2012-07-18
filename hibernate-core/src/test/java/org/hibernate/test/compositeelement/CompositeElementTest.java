@@ -24,7 +24,8 @@
 package org.hibernate.test.compositeelement;
 import java.util.ArrayList;
 
-import org.hibernate.Hibernate;
+import org.junit.Test;
+
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Mappings;
@@ -34,11 +35,8 @@ import org.hibernate.dialect.function.SQLFunction;
 import org.hibernate.mapping.Collection;
 import org.hibernate.mapping.Component;
 import org.hibernate.mapping.Formula;
-import org.hibernate.type.StandardBasicTypes;
-
-import org.junit.Test;
-
 import org.hibernate.testing.junit4.BaseCoreFunctionalTestCase;
+import org.hibernate.type.StandardBasicTypes;
 
 import static org.junit.Assert.assertEquals;
 
@@ -118,8 +116,10 @@ public class CompositeElementTest extends BaseCoreFunctionalTestCase {
 		s.save( p );
 		s.flush();
 
-		Integer sqlValue = (Integer) s.createSQLQuery("select child_position from parentchild c where c.name='Child One'")
-				.uniqueResult();
+		// Oracle returns BigDecimaal while other dialects return Integer;
+		// casting to Number so it works on all dialects
+		Number sqlValue = ((Number) s.createSQLQuery("select child_position from ParentChild c where c.name='Child One'")
+				.uniqueResult());
 		assertEquals( 0, sqlValue.intValue() );
 
 		Integer hqlValue = (Integer)s.createQuery("select c.position from Parent p join p.children c where p.name='Parent'")
@@ -136,8 +136,8 @@ public class CompositeElementTest extends BaseCoreFunctionalTestCase {
 
 		c.setPosition( 2 );
 		s.flush();
-		sqlValue = (Integer) s.createSQLQuery("select child_position from parentchild c where c.name='Child One'")
-				.uniqueResult();
+		sqlValue = ( (Number) s.createSQLQuery("select child_position from ParentChild c where c.name='Child One'")
+				.uniqueResult() );
 		assertEquals( 1, sqlValue.intValue() );
 		s.delete( p );
 		t.commit();

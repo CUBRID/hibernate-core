@@ -23,22 +23,23 @@
  */
 package org.hibernate.envers.test.integration.query;
 
-import org.hibernate.ejb.Ejb3Configuration;
-import org.hibernate.envers.query.AuditEntity;
-import org.hibernate.envers.test.AbstractEntityTest;
-import org.hibernate.envers.test.Priority;
-import org.hibernate.envers.test.entities.StrIntTestEntity;
-import org.junit.Test;
-
-import javax.persistence.EntityManager;
 import java.util.Arrays;
 import java.util.List;
+import javax.persistence.EntityManager;
+
+import org.junit.Test;
+
+import org.hibernate.ejb.Ejb3Configuration;
+import org.hibernate.envers.query.AuditEntity;
+import org.hibernate.envers.test.BaseEnversJPAFunctionalTestCase;
+import org.hibernate.envers.test.Priority;
+import org.hibernate.envers.test.entities.StrIntTestEntity;
 
 /**
  * @author Adam Warski (adam at warski dot org)
  */
 @SuppressWarnings({"unchecked"})
-public class MaximalizePropertyQuery extends AbstractEntityTest {
+public class MaximalizePropertyQuery extends BaseEnversJPAFunctionalTestCase {
     Integer id1;
     Integer id2;
 

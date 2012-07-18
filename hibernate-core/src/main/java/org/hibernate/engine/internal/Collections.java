@@ -41,7 +41,6 @@ import org.hibernate.internal.CoreMessageLogger;
 import org.hibernate.persister.collection.CollectionPersister;
 import org.hibernate.pretty.MessageHelper;
 import org.hibernate.type.CollectionType;
-import org.hibernate.type.Type;
 
 /**
  * Implements book-keeping for the collection persistence by reachability algorithm
@@ -74,7 +73,7 @@ public final class Collections {
 		CollectionEntry entry = persistenceContext.getCollectionEntry(coll);
 		final CollectionPersister loadedPersister = entry.getLoadedPersister();
 
-        if (LOG.isDebugEnabled() && loadedPersister != null) {
+		if ( LOG.isDebugEnabled() && loadedPersister != null ) {
 			LOG.debugf(
 					"Collection dereferenced: %s",
 					MessageHelper.collectionInfoString(
@@ -134,8 +133,10 @@ public final class Collections {
 		final PersistenceContext persistenceContext = session.getPersistenceContext();
 		CollectionEntry entry = persistenceContext.getCollectionEntry(coll);
 
-        LOG.debugf("Found collection with unloaded owner: %s",
-                   MessageHelper.collectionInfoString(entry.getLoadedPersister(), entry.getLoadedKey(), session.getFactory()));
+		if ( LOG.isDebugEnabled() ) {
+			LOG.debugf( "Found collection with unloaded owner: %s",
+					MessageHelper.collectionInfoString( entry.getLoadedPersister(), entry.getLoadedKey(), session.getFactory() ) );
+		}
 
 		entry.setCurrentPersister( entry.getLoadedPersister() );
 		entry.setCurrentKey( entry.getLoadedKey() );
@@ -251,7 +252,7 @@ public final class Collections {
 				if ( loadedPersister != null ) {
 					entry.setDoremove( true );		// we will need to remove ye olde entries
 					if ( entry.isDorecreate() ) {
-                        LOG.trace( "Forcing collection initialization" );
+						LOG.trace( "Forcing collection initialization" );
 						collection.forceInitialization();
 					}
 				}
