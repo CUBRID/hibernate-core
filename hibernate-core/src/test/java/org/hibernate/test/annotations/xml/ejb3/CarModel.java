@@ -23,6 +23,7 @@
  */
 package org.hibernate.test.annotations.xml.ejb3;
 import java.util.Date;
+import javax.persistence.Column;
 
 /**
  * @author Emmanuel Bernard
@@ -30,6 +31,7 @@ import java.util.Date;
 public class CarModel extends Model {
 	private Date year;
 
+    @Column(name="`year`")
 	public Date getYear() {
 		return year;
 	}

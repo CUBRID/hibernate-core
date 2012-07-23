@@ -34,7 +34,7 @@ public class Investment {
 	
 	private DollarValue amount;
 	private String description;
-    @Column(name = "`date`")
+
 	private MyDate date;
 
 	public DollarValue getAmount() {
@@ -54,6 +54,7 @@ public class Investment {
 		this.description = description;
 	}
 
+    @Column(name = "`date`")
 	public MyDate getDate() {
 		return date;
 	}

@@ -11,7 +11,7 @@ public class LongProperty implements Property {
     private Integer id;
 
     private String name;
-    @Column(name = "`value`")
+
     private Long value;
 
     public LongProperty() {
@@ -42,6 +42,7 @@ public class LongProperty implements Property {
         this.id = id;
     }
 
+    @Column(name = "`value`")
     public Long getValue() {
         return value;
     }

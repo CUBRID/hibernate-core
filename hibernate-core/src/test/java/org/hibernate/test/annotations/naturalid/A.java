@@ -47,6 +47,7 @@ public class A {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.TABLE)
+    @Column(name="`oid`")
 	private long oid;
 
 	@Version

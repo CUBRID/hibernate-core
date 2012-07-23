@@ -1,5 +1,6 @@
 package org.hibernate.test.criteria;
 import java.io.Serializable;
+import javax.persistence.Column;
 
 /**
  * @author Gail Badner
@@ -25,6 +26,7 @@ public class CourseMeetingId implements Serializable {
 	public void setCourseCode(String courseCode) {
 		this.courseCode = courseCode;
 	}
+    @Column(name="`day`")
 	public String getDay() {
 		return day;
 	}

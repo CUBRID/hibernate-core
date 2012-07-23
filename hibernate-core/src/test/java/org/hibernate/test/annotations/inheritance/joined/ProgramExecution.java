@@ -5,6 +5,7 @@ import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
+import javax.persistence.Column;
 
 /**
  * @author Emmanuel Bernard
@@ -27,6 +28,7 @@ public class ProgramExecution {
 		this.appliesOn = appliesOn;
 	}
 
+    @Column(name="`action`")
 	public String getAction() {
 		return action;
 	}

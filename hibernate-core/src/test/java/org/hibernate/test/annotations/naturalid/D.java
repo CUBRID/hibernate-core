@@ -29,6 +29,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Version;
+import javax.persistence.Column;
 
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
@@ -41,6 +42,7 @@ import org.hibernate.annotations.CacheConcurrencyStrategy;
 public class D {
 	@Id
 	@GeneratedValue(strategy = GenerationType.TABLE)
+    @Column(name="`oid`")
 	public long oid;
 
 	@Version
