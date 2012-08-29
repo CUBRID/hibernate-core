@@ -40,13 +40,16 @@ import org.junit.Before;
 import org.hibernate.HibernateException;
 import org.hibernate.Interceptor;
 import org.hibernate.Session;
+import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.cfg.Environment;
 import org.hibernate.cfg.Mappings;
 import org.hibernate.dialect.Dialect;
+import org.hibernate.dialect.H2Dialect;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.engine.spi.SessionImplementor;
+import org.hibernate.internal.util.StringHelper;
 import org.hibernate.internal.util.config.ConfigurationHelper;
 import org.hibernate.jdbc.AbstractReturningWork;
 import org.hibernate.jdbc.Work;
@@ -56,12 +59,11 @@ import org.hibernate.mapping.Property;
 import org.hibernate.mapping.SimpleValue;
 import org.hibernate.metamodel.MetadataSources;
 import org.hibernate.metamodel.source.MetadataImplementor;
-import org.hibernate.service.BootstrapServiceRegistry;
-import org.hibernate.service.BootstrapServiceRegistryBuilder;
+import org.hibernate.boot.registry.BootstrapServiceRegistry;
+import org.hibernate.boot.registry.BootstrapServiceRegistryBuilder;
 import org.hibernate.service.ServiceRegistry;
-import org.hibernate.service.ServiceRegistryBuilder;
-import org.hibernate.service.config.spi.ConfigurationService;
-import org.hibernate.service.internal.StandardServiceRegistryImpl;
+import org.hibernate.engine.config.spi.ConfigurationService;
+import org.hibernate.boot.registry.internal.StandardServiceRegistryImpl;
 import org.hibernate.testing.AfterClassOnce;
 import org.hibernate.testing.BeforeClassOnce;
 import org.hibernate.testing.OnExpectedFailure;
@@ -178,6 +180,13 @@ public abstract class BaseCoreFunctionalTestCase extends BaseUnitTestCase {
 		configuration.setProperty( AvailableSettings.USE_NEW_ID_GENERATOR_MAPPINGS, "true" );
 		if ( createSchema() ) {
 			configuration.setProperty( Environment.HBM2DDL_AUTO, "create-drop" );
+			final String secondSchemaName = createSecondSchema();
+			if ( StringHelper.isNotEmpty( secondSchemaName ) ) {
+				if ( !( getDialect() instanceof H2Dialect ) ) {
+					throw new UnsupportedOperationException( "Only H2 dialect supports creation of second schema." );
+				}
+				Helper.createH2Schema( secondSchemaName, configuration );
+			}
 		}
 		configuration.setProperty( Environment.DIALECT, getDialect().getClass().getName() );
 		return configuration;
@@ -325,7 +334,7 @@ public abstract class BaseCoreFunctionalTestCase extends BaseUnitTestCase {
 		ConfigurationHelper.resolvePlaceHolders( properties );
 
 		final BootstrapServiceRegistry bootstrapServiceRegistry = generateBootstrapRegistry( properties );
-		ServiceRegistryBuilder registryBuilder = new ServiceRegistryBuilder( bootstrapServiceRegistry )
+		StandardServiceRegistryBuilder registryBuilder = new StandardServiceRegistryBuilder( bootstrapServiceRegistry )
 				.applySettings( properties );
 		prepareBasicRegistryBuilder( registryBuilder );
 		return (StandardServiceRegistryImpl) registryBuilder.buildServiceRegistry();
@@ -340,7 +349,7 @@ public abstract class BaseCoreFunctionalTestCase extends BaseUnitTestCase {
 	protected void prepareBootstrapRegistryBuilder(BootstrapServiceRegistryBuilder builder) {
 	}
 
-	protected void prepareBasicRegistryBuilder(ServiceRegistryBuilder serviceRegistryBuilder) {
+	protected void prepareBasicRegistryBuilder(StandardServiceRegistryBuilder serviceRegistryBuilder) {
 	}
 
 	protected void afterSessionFactoryBuilt() {
@@ -348,6 +357,14 @@ public abstract class BaseCoreFunctionalTestCase extends BaseUnitTestCase {
 
 	protected boolean createSchema() {
 		return true;
+	}
+
+	/**
+	 * Feature supported only by H2 dialect.
+	 * @return Provide not empty name to create second schema.
+	 */
+	protected String createSecondSchema() {
+		return null;
 	}
 
 	protected boolean rebuildSessionFactoryOnError() {
