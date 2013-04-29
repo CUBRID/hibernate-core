@@ -67,7 +67,7 @@ public class CUBRIDDialect extends Dialect {
         registerColumnType( Types.NUMERIC, "numeric($p,$s)" );
         registerColumnType( Types.BLOB, "blob" );
         registerColumnType( Types.CLOB, "string" );
-        registerColumnType( Types.BOOLEAN, "smallint(1)" );
+        registerColumnType( Types.BOOLEAN, "bit(8)" );
 		registerColumnType( Types.VARCHAR, 255, "varchar($l)" );
         registerColumnType( Types.VARCHAR, 65535, "varchar($l)" );
 		registerColumnType( Types.VARCHAR, "string" );
