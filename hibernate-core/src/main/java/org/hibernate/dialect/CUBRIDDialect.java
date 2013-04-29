@@ -165,10 +165,6 @@ public class CUBRIDDialect extends Dialect {
             .append(hasOffset ? " limit ?, ?" : " limit ?").toString();
     }
 
-    public boolean useMaxForLimit() {
-        return true;
-    }
-
     public char closeQuote() {
         return ']';
     }
